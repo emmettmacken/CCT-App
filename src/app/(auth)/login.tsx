@@ -20,7 +20,7 @@ const SignInScreen = () => {
 
   const handleSignIn = () => {
     if (email && password && role) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/home');
     } else {
       alert('Please enter all fields');
     }

@@ -1,0 +1,164 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  nameText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  profileButton: {
+    height: 50,
+    width: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  profileImagePlaceholder: {
+    height: 50,
+    width: 50,
+    borderRadius: 25,
+    backgroundColor: '#5b8af5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitial: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  progressContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  progressPercent: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#5b8af5',
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: '#e9ecef',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#5b8af5',
+    borderRadius: 6,
+  },
+  trialInfo: {
+    fontSize: 14,
+    color: '#666',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  seeAllText: {
+    fontSize: 16,
+    color: '#5b8af5',
+    fontWeight: '500',
+  },
+  appointmentsContainer: {
+    marginBottom: 24,
+  },
+  appointmentCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  appointmentDateContainer: {
+    backgroundColor: '#5b8af5',
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 100,
+  },
+  appointmentDate: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  appointmentTime: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  appointmentDivider: {
+    width: 1,
+    backgroundColor: '#e9ecef',
+  },
+  appointmentDetails: {
+    flex: 1,
+    padding: 16,
+  },
+  appointmentTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  appointmentLocation: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  appointmentRequirement: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 2,
+  },
+});
