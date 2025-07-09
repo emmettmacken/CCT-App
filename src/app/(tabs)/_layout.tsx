@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/Colors";
+import { Image } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -43,8 +44,17 @@ export default function TabLayout() {
           <Tabs.Screen
             name="medications"
             options={{
-              tabBarIcon: ({ color }) => (
-                <Ionicons name="medkit" size={28} color={color} />
+              tabBarIcon: ({ color, focused }) => (
+                <Image
+                  source={require("../../../assets/images/pill.png")}
+                  style={{ 
+                    tintColor: color,
+                    width: 30, 
+                    height: 30, 
+                    opacity: focused ? 1 : 0.6
+                  }}
+                  resizeMode="contain"
+                />
               ),
             }}
           />
