@@ -1,10 +1,22 @@
-import { View, Text, TextInput, TouchableOpacity, Image } from "react-native";
-import React, { useState } from "react";
-import Button from "../../components/Button";
 import { Link, router, Stack } from "expo-router";
+import React, { useState } from "react";
+import {
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 import { Dropdown } from "react-native-element-dropdown";
+import Icon from "react-native-vector-icons/Feather";
+import { supabase } from "../../../backend/supabaseClient";
+import Button from "../../components/Button";
 import { styles } from "../../styles/auth.styles";
-import { supabase } from "../../../backend/supabaseClient"; 
 
 const roles = [
   { label: "Select your role", value: "" },
@@ -16,23 +28,28 @@ const SignUpScreen = () => {
   const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSignUp = async () => {
-    if (!email || !password || !role) {
+  const handleSignUp = async (): Promise<void> => {
+    if (!role || !email || !password) {
       alert("Please fill in all fields.");
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { role },
-      }
     });
 
-    if (error) {
-      alert(error.message);
+    if (signUpError) {
+      alert(signUpError.message);
+      return;
+    }
+
+    const userId = authData.user?.id;
+
+    if (!userId) {
+      alert("User ID not found. Please try again.");
       return;
     }
 
@@ -41,52 +58,89 @@ const SignUpScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: "Sign up" }} />
-      <Image 
-      source={{uri: 'https://cdni.iconscout.com/illustration/premium/thumb/create-account-illustration-download-in-svg-png-gif-file-formats--user-add-profile-login-business-bubble-pack-illustrations-6110939.png'}} 
-      style= {{
-        width: 400, 
-        height: 350, 
-        alignSelf: 'center', 
-        marginBottom: 20}} 
-      />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Stack.Screen options={{ title: "Sign up" }} />
+          <Image
+            source={{
+              uri: "https://cdni.iconscout.com/illustration/premium/thumb/create-account-illustration-download-in-svg-png-gif-file-formats--user-add-profile-login-business-bubble-pack-illustrations-6110939.png",
+            }}
+            style={{
+              width: 400,
+              height: 350,
+              alignSelf: "center",
+              marginBottom: 20,
+            }}
+          />
 
-      <Text style={styles.label}>Create your account</Text>
-      <Dropdown
-        style={styles.dropdown}
-        data={roles}
-        labelField="label"
-        valueField="value"
-        placeholder="Select your role"
-        value={role}
-        onChange={(item) => setRole(item.value)}
-        containerStyle={styles.dropdownContainer}
-      />
+          <Text style={styles.label}>Create your account</Text>
+          <Dropdown
+            style={styles.dropdown}
+            data={roles}
+            labelField="label"
+            valueField="value"
+            placeholder="Select your role"
+            value={role}
+            onChange={(item) => setRole(item.value)}
+            containerStyle={styles.dropdownContainer}
+          />
 
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email"
-        style={styles.input}
-      />
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email"
+            style={styles.input}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Password"
-        style={styles.input}
-        secureTextEntry
-      />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              width: "100%",
+            }}
+          >
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              style={[styles.input, { flex: 1 }]}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword((prev) => !prev)}
+              style={{ marginLeft: -30 }}
+            >
+              <Icon
+                name={showPassword ? "eye-off" : "eye"}
+                size={24}
+                color="gray"
+              />
+            </TouchableOpacity>
+          </View>
 
-      <TouchableOpacity onPress={handleSignUp}>
-        <Button text="Create account" />
-      </TouchableOpacity>
+          <Button
+            text="Create account"
+            onPress={handleSignUp}
+            style={{ width: "100%" }}
+          />
 
-      <Link href="../../login" style={styles.textButton}>
-        Sign in
-      </Link>
-    </View>
+          <Link href="../../login" style={styles.textButton}>
+            Sign in
+          </Link>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 };
 

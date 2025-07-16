@@ -1,5 +1,5 @@
 export type Appointment = {
-    date: string;
+    dateTime: string;
     duration: number;
     type: string;
     location: string;

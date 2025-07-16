@@ -7,7 +7,7 @@ import { Image } from "react-native";
 export default function TabLayout() {
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: "black" }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
         <Tabs
           screenOptions={{
             tabBarShowLabel: false,
@@ -15,11 +15,10 @@ export default function TabLayout() {
             tabBarActiveTintColor: COLORS.primary,
             tabBarInactiveTintColor: COLORS.grey,
             tabBarStyle: {
-              backgroundColor: "black",
+              backgroundColor: "white",
               borderTopWidth: 0,
-              position: "absolute",
               elevation: 0,
-              height: 60,
+              height: 54,
               paddingBottom: 8,
               paddingTop: 8,
             },
@@ -44,14 +43,13 @@ export default function TabLayout() {
           <Tabs.Screen
             name="medications"
             options={{
-              tabBarIcon: ({ color, focused }) => (
+              tabBarIcon: ({ color }) => (
                 <Image
                   source={require("../../../assets/images/pill.png")}
                   style={{ 
                     tintColor: color,
                     width: 30, 
                     height: 30, 
-                    opacity: focused ? 1 : 0.6
                   }}
                   resizeMode="contain"
                 />
@@ -71,14 +69,6 @@ export default function TabLayout() {
             options={{
               tabBarIcon: ({ color }) => (
                 <Ionicons name="help-outline" size={28} color={color} />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              tabBarIcon: ({ color }) => (
-                <Ionicons name="settings" size={28} color={color} />
               ),
             }}
           />

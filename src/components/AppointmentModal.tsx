@@ -29,7 +29,7 @@ const AppointmentModal: React.FC<Props> = ({ visible, onClose, appointment }) =>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Date & Time:</Text>
               <Text style={styles.detailValue}>
-                {format(new Date(appointment.date), 'PPPPp')}
+                {format(new Date(appointment.dateTime), 'PPPPp')}
               </Text>
             </View>
 

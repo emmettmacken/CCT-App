@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { styles } from "../../styles/home.styles";
 
 // Mock data for user and appointments
-// In a real app, this would be fetched from an API or state management store
+// In the real app, this would be fetched from an API or state management store
 const MOCK_USER = {
   name: 'Emmett Macken',
   trialProgress: 65, // percentage
@@ -17,27 +17,27 @@ const MOCK_USER = {
 const MOCK_APPOINTMENTS = [
   {
     id: '1',
-    date: '15 July 2025',
-    time: '09:30 AM',
-    title: 'Blood Test & Consultation',
-    location: 'Oncology Dept, Floor 3',
-    requirements: ['8-hour fasting', 'Bring medication list'],
+    date: '22 July 2025',
+    time: '15:00 PM',
+    title: 'Follow-up',
+    location: 'Clinic A, Floor 2',
+    requirements: ['No fasting required', 'Bring your medical records and any current medications'],
   },
   {
     id: '2',
-    date: '22 July 2025',
+    date: '25 July 2025',
     time: '11:00 AM',
-    title: 'CT Scan',
-    location: 'Radiology Dept, Floor 2',
-    requirements: ['No metal objects', 'Wear comfortable clothing'],
+    title: 'Treatment Administration',
+    location: 'Treatment Room 5, Floor 4',
+    requirements: ['Fasting required','Take anti-nausea medication 1hr before', 'Arrange transport home'],
   },
   {
     id: '3',
-    date: '29 July 2025',
-    time: '10:15 AM',
-    title: 'Treatment Administration',
-    location: 'Treatment Room 5, Floor 4',
-    requirements: ['Take anti-nausea medication 1hr before', 'Arrange transport home'],
+    date: '28 July 2025',
+    time: '09:00 AM',
+    title: 'CT Scan',
+    location: 'Radiology Dept, Floor 2',
+    requirements: ['No metal objects', 'Wear comfortable clothing'],
   },
 ];
 
@@ -124,7 +124,9 @@ export default function HomeScreen() {
               // navigation.navigate('calendar');
             }}
           >
-            <Text style={styles.seeAllText}>See All</Text>
+            <Link href= "/(tabs)/appointments" style={styles.seeAllText}>
+              See All
+            </Link>
           </TouchableOpacity>
         </View>
 

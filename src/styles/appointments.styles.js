@@ -85,16 +85,20 @@ export const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 5,
+    textAlign: 'center',
+    marginTop: 5,
   },
   subtitle: {
     fontSize: 18,
     color: '#666',
     marginBottom: 10,
+    textAlign: 'center',
   },
   attendance:{
     fontSize: 16,
     color: '#999',
-    marginBottom: 20,
+    marginBottom: 0,
+    textAlign: 'center',
   }
 });

@@ -19,6 +19,7 @@ export const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 16,
     color: '#666',
+    marginTop: 40,
   },
   nameText: {
     fontSize: 24,

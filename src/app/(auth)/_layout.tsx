@@ -5,7 +5,8 @@ export default function AuthLayout() {
     return (
         <SafeAreaProvider>
           <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
-            <Stack screenOptions={{ headerShown: false }} />
+            <Stack screenOptions={{ headerShown: false }}>
+            </Stack>
           </SafeAreaView>
         </SafeAreaProvider>
       );

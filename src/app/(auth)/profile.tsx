@@ -1,12 +1,21 @@
-import { View, Text } from 'react-native'
-import { Link } from 'expo-router'
+import { View, Text, TouchableOpacity } from 'react-native'
+import { Link, router } from 'expo-router'
+import Button from '../../components/Button';
 
 export default function Profile() {
   return (
     <View>
       <Text>Profile screen</Text>
-      <Link href="../login">Logout</Link>
-      <Link href="../home">Return Home</Link>
+      <Link href="../home">Home Screen</Link>
+      <Button
+        text="Log out"
+        onPress={handleLogOut}
+        style={{width: '100%'}}
+      />
     </View>
   )
+}
+
+const handleLogOut= () => {
+  router.replace('/(auth)/login');
 }
