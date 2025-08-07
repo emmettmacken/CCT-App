@@ -12,7 +12,6 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { Dropdown } from "react-native-element-dropdown";
 import Icon from "react-native-vector-icons/Feather";
 import { supabase } from "../../../backend/supabaseClient";
 import Button from "../../components/Button";
@@ -20,19 +19,13 @@ import { styles } from "../../styles/auth.styles";
 
 const SignInScreen = () => {
   const router = useRouter();
-  const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const roles = [
-    { label: "Select your role", value: "" },
-    { label: "Patient", value: "patient" },
-    { label: "Clinician", value: "clinician" },
-  ];
 
   const handleSignIn = async (): Promise<void> => {
-    if (!role || !email || !password) {
+    if (!email || !password) {
       alert("Please fill in all fields");
       return;
     }
@@ -65,12 +58,14 @@ const SignInScreen = () => {
         return;
       }
 
-      if (userProfile.role !== role) {
-        alert("Role mismatch. Please select the correct role.");
-        return;
+      const role = userProfile.role;
+
+      if (role === "clinician") {
+        router.replace("../(clinician)/dashboard");
+      } else {
+        router.replace("../(tabs)/home");
       }
 
-      router.replace("/(tabs)/home");
     } catch (error: any) {
       console.error("Login error:", error);
       alert("An unexpected error occurred. Please try again later.");
@@ -101,16 +96,6 @@ const SignInScreen = () => {
           />
 
           <Text style={styles.label}>Log in to your account</Text>
-          <Dropdown
-            style={styles.input}
-            data={roles}
-            labelField="label"
-            valueField="value"
-            placeholder="Select your role"
-            value={role}
-            onChange={(item) => setRole(item.value)}
-            containerStyle={styles.dropdownContainer}
-          />
 
           <TextInput
             value={email}

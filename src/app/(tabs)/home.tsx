@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Link, router } from 'expo-router';
 import { styles } from "../../styles/home.styles";
+import { supabase } from "../../../backend/supabaseClient"
 
 // Mock data for user and appointments
 // In the real app, this would be fetched from an API or state management store

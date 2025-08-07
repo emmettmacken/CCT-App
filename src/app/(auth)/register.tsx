@@ -12,26 +12,19 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { Dropdown } from "react-native-element-dropdown";
 import Icon from "react-native-vector-icons/Feather";
 import { supabase } from "../../../backend/supabaseClient";
 import Button from "../../components/Button";
 import { styles } from "../../styles/auth.styles";
 
-const roles = [
-  { label: "Select your role", value: "" },
-  { label: "Patient", value: "patient" },
-  { label: "Clinician", value: "clinician" },
-];
-
 const SignUpScreen = () => {
-  const [role, setRole] = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignUp = async (): Promise<void> => {
-    if (!role || !email || !password) {
+    if (!name || !email || !password) {
       alert("Please fill in all fields.");
       return;
     }
@@ -39,6 +32,11 @@ const SignUpScreen = () => {
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          name,
+        }
+      }
     });
 
     if (signUpError) {
@@ -52,6 +50,17 @@ const SignUpScreen = () => {
       alert("User ID not found. Please try again.");
       return;
     }
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ name })
+      .eq("id", userId);
+
+      if (profileError) {
+        alert("Error saving profile: " + profileError.message);
+        return;
+      }
+
 
     alert("Account created successfully! Please check your email.");
     router.replace("/login");
@@ -81,15 +90,12 @@ const SignUpScreen = () => {
           />
 
           <Text style={styles.label}>Create your account</Text>
-          <Dropdown
-            style={styles.dropdown}
-            data={roles}
-            labelField="label"
-            valueField="value"
-            placeholder="Select your role"
-            value={role}
-            onChange={(item) => setRole(item.value)}
-            containerStyle={styles.dropdownContainer}
+
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Name"
+            style={styles.input}
           />
 
           <TextInput

@@ -1,13 +1,17 @@
 import { View, Text } from 'react-native'
-import { Link, router } from 'expo-router'
 import Button from '../../components/Button';
 import { supabase } from '../../../backend/supabaseClient'
+import { router } from 'expo-router'
+
+const handleLogOut= () => {
+  supabase.auth.signOut();
+  router.replace('/(auth)/login');
+}
 
 export default function Profile() {
   return (
     <View>
-      <Text>Profile screen</Text>
-      <Link href="../home">Home Screen</Link>
+      <Text>Clinician view</Text>
       <Button
         text="Log out"
         onPress={handleLogOut}
@@ -15,9 +19,4 @@ export default function Profile() {
       />
     </View>
   )
-}
-
-const handleLogOut= () => {
-  supabase.auth.signOut();
-  router.replace('/(auth)/login');
 }

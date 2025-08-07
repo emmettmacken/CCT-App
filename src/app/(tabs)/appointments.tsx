@@ -56,7 +56,7 @@ const MockData: Record<string, any> = {
       clinician_name: 'Dr. Jane Doe',
       clinician_contact: 'janedoe@hse.ie',
       fasting_required: true,
-      medications_to_avoid: 'Avoid anti-inlfammatory medications.',
+      medications_to_avoid: 'Avoid anti-inflammatory medications.',
       special_instructions: 'Take anti-nausea medication 1 hour before the appointment and arrange transport home.'
     }
   },
@@ -129,8 +129,8 @@ const CalendarScreen = () => {
         If you cannot attend your scheduled appointment, please contact Clinical Trials Office at 087 382 4221 at your earliest convenience
       </Text>
       <Calendar
-        current={'2025-07-16'}
-        minDate={'2025-07-16'}
+        current={'2025-07-17'}
+        minDate={'2025-07-17'}
         maxDate={'2025-12-31'}
         markingType={'custom'}
         markedDates={appointments}

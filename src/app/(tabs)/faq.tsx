@@ -79,6 +79,7 @@ const FAQScreen = () => {
           <Text style={styles.contactDetail}>Phone: (087) 382 4221</Text>
           <Text style={styles.contactDetail}>Email: clinicaltrials@uhl.ie</Text>
           <Text style={styles.contactDetail}>Hours: Mon-Fri, 9am-5pm</Text>
+          <Text style={styles.contactDetail}>Feeling unwell outside of hours? Contact: 061482900</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
