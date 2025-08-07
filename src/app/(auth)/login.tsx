@@ -61,7 +61,7 @@ const SignInScreen = () => {
       const role = userProfile.role;
 
       if (role === "clinician") {
-        router.replace("../(clinician)/dashboard");
+        router.replace("../(clinician)/home");
       } else {
         router.replace("../(tabs)/home");
       }
