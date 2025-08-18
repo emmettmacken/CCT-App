@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Text, SafeAreaView } from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import { styles } from '../../styles/appointments.styles';
-import { Appointment, AppointmentData } from '../../types/appointments';
-import AppointmentModal from '../../components/AppointmentModal';
+import React, { useEffect, useState } from "react";
+import { SafeAreaView, Text } from "react-native";
+import { Calendar } from "react-native-calendars";
+import { supabase } from "../../../backend/supabaseClient";
+import AppointmentModal from "../../components/AppointmentModal";
+import { styles } from "../../styles/appointments.styles";
+import { Appointment } from "../../types/appointments";
 
-const MockData: Record<string, any> = {
+/*const MockData: Record<string, any> = {
   '2025-08-13': {
     customStyles: {
       container: {
@@ -87,21 +88,65 @@ const MockData: Record<string, any> = {
       special_instructions: 'No metal objects, wear comfortable clothing.'
     }
   },
-};
+};*/
 
 const CalendarScreen = () => {
-  const [appointments, setAppointments] = useState<Record<string, AppointmentData>>({});
+  const [appointments, setAppointments] = useState<Record<string, any>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate data loading
-    setTimeout(() => {
-      setAppointments(MockData);
-      setLoading(false);
-    }, 500); // simulate brief delay
+    const fetchAppointments = async () => {
+      try {
+        const { data, error } = await supabase.from("appointments").select("*");
+
+        if (error) {
+          console.error("Error fetching appointments:", error);
+          return;
+        }
+
+        if (data) {
+          const now = new Date();
+
+          const formattedAppointments = data.reduce(
+            (acc: Record<string, any>, appt: any) => {
+              const dateTime = `${appt.date}T${appt.time}`;
+              const isPast = dateTime < now.toISOString();
+
+              acc[appt.date] = {
+                customStyles: {
+                  container: {
+                    backgroundColor: isPast ? "#b0b0b0" : "#3f51b5",
+                    borderRadius: 20,
+                    width: 36,
+                    height: 36,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  },
+                  text: { color: "#ffffff" },
+                },
+                appointmentData: {
+                  ...appt,
+                  dateTime,
+                },
+              };
+              return acc;
+            },
+            {}
+          );
+
+          setAppointments(formattedAppointments);
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAppointments();
   }, []);
 
   const handleDayPress = (day: { dateString: string }) => {
@@ -111,6 +156,10 @@ const CalendarScreen = () => {
       setSelectedAppointment(appointmentEntry.appointmentData);
       setModalVisible(true);
     }
+  };
+
+  const formatDate = (dateTime: string) => {
+    return dateTime.split("T")[0].split("-").reverse().join("-");
   };
 
   if (loading) {
@@ -126,35 +175,40 @@ const CalendarScreen = () => {
       <Text style={styles.title}>Your Appointments</Text>
       <Text style={styles.subtitle}>Tap on a date to view details</Text>
       <Text style={styles.attendance}>
-        If you cannot attend your scheduled appointment, please contact Clinical Trials Office at 087 382 4221 at your earliest convenience
+        If you cannot attend your scheduled appointment, please contact Clinical
+        Trials Office at 087 382 4221 at your earliest convenience
       </Text>
       <Calendar
-        current={'2025-08-13'}
-        minDate={'2025-08-13'}
-        maxDate={'2025-12-31'}
-        markingType={'custom'}
+        current={
+          new Date().toISOString().split("T")[0]
+        }
+        minDate={
+          new Date().toISOString().split("T")[0]
+        }
+        maxDate={"2050-12-31"}
+        markingType={"custom"}
         markedDates={appointments}
         onDayPress={handleDayPress}
         firstDay={1}
         theme={{
-          calendarBackground: '#ffffff',
-          textSectionTitleColor: '#3f51b5',
-          selectedDayBackgroundColor: '#3f51b5',
-          selectedDayTextColor: '#ffffff',
-          todayTextColor: '#3f51b5',
-          dayTextColor: '#2d4150',
-          textDisabledColor: '#d9e1e8',
-          dotColor: '#3f51b5',
-          selectedDotColor: '#ffffff',
-          arrowColor: '#3f51b5',
-          monthTextColor: '#3f51b5',
-          indicatorColor: '#3f51b5',
-          textDayFontWeight: '300',
-          textMonthFontWeight: 'bold',
-          textDayHeaderFontWeight: '300',
+          calendarBackground: "#ffffff",
+          textSectionTitleColor: "#3f51b5",
+          selectedDayBackgroundColor: "#3f51b5",
+          selectedDayTextColor: "#ffffff",
+          todayTextColor: "#3f51b5",
+          dayTextColor: "#2d4150",
+          textDisabledColor: "#d9e1e8",
+          dotColor: "#3f51b5",
+          selectedDotColor: "#ffffff",
+          arrowColor: "#3f51b5",
+          monthTextColor: "#3f51b5",
+          indicatorColor: "#3f51b5",
+          textDayFontWeight: "300",
+          textMonthFontWeight: "bold",
+          textDayHeaderFontWeight: "300",
           textDayFontSize: 16,
           textMonthFontSize: 16,
-          textDayHeaderFontSize: 16
+          textDayHeaderFontSize: 16,
         }}
         style={styles.calendar}
       />

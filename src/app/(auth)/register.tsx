@@ -56,10 +56,10 @@ const SignUpScreen = () => {
       .update({ name })
       .eq("id", userId);
 
-      if (profileError) {
-        alert("Error saving profile: " + profileError.message);
-        return;
-      }
+    if (profileError) {
+      alert("Error saving profile: " + profileError.message);
+      return;
+    }
 
 
     alert("Account created successfully! Please check your email.");

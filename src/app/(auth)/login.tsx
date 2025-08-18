@@ -23,7 +23,6 @@ const SignInScreen = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-
   const handleSignIn = async (): Promise<void> => {
     if (!email || !password) {
       alert("Please fill in all fields");
@@ -63,9 +62,8 @@ const SignInScreen = () => {
       if (role === "clinician") {
         router.replace("../(clinician)/home");
       } else {
-        router.replace("../(tabs)/home");
+        router.replace("../(patient)/home");
       }
-
     } catch (error: any) {
       console.error("Login error:", error);
       alert("An unexpected error occurred. Please try again later.");

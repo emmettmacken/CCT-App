@@ -129,12 +129,12 @@ export const styles = StyleSheet.create({
   appointmentDate: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 16,
     textAlign: 'center',
   },
   appointmentTime: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 4,
     textAlign: 'center',
   },

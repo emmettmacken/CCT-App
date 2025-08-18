@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { Image } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/Colors";
-import { Image } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -33,7 +33,7 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
-            name="appointments"
+            name="calendar"
             options={{
               tabBarIcon: ({ color }) => (
                 <Ionicons name="calendar-outline" size={28} color={color} />
@@ -46,10 +46,10 @@ export default function TabLayout() {
               tabBarIcon: ({ color }) => (
                 <Image
                   source={require("../../../assets/images/pill.png")}
-                  style={{ 
+                  style={{
                     tintColor: color,
-                    width: 30, 
-                    height: 30, 
+                    width: 30,
+                    height: 30,
                   }}
                   resizeMode="contain"
                 />
@@ -70,6 +70,12 @@ export default function TabLayout() {
               tabBarIcon: ({ color }) => (
                 <Ionicons name="help-outline" size={28} color={color} />
               ),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              href: null,
             }}
           />
         </Tabs>
