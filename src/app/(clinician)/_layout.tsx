@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../../constants/Colors";
-import { Image } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -33,7 +32,7 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
-            name="appointments"
+            name="calendar"
             options={{
               tabBarIcon: ({ color }) => (
                 <Ionicons name="calendar-outline" size={28} color={color} />
@@ -41,26 +40,10 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
-            name="medications"
+            name="patients"
             options={{
               tabBarIcon: ({ color }) => (
-                <Image
-                  source={require("../../../assets/images/pill.png")}
-                  style={{ 
-                    tintColor: color,
-                    width: 30, 
-                    height: 30, 
-                  }}
-                  resizeMode="contain"
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="notifications"
-            options={{
-              tabBarIcon: ({ color }) => (
-                <Ionicons name="notifications" size={28} color={color} />
+                <Ionicons name="people-outline" size={28} color={color} />
               ),
             }}
           />
@@ -69,6 +52,14 @@ export default function TabLayout() {
             options={{
               tabBarIcon: ({ color }) => (
                 <Ionicons name="help-outline" size={28} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="dashboard"
+            options={{
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="settings" size={28} color={color} />
               ),
             }}
           />

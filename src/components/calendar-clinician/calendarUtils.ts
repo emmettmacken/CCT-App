@@ -3,10 +3,7 @@ import { Appointment } from '../../types/clinCalendar';
 
 export const getDotColor = (type: string) => {
   switch (type.toLowerCase()) {
-    case 'checkup': return '#4CAF50';
-    case 'treatment': return '#FF9800';
-    case 'consultation': return '#2196F3';
-    default: return '#9C27B0';
+    default: return '#2196F3';
   }
 };
 
@@ -15,18 +12,22 @@ export const getMarkedDates = (
   selectedAppointment: Appointment | null
 ) => {
   const marked: Record<string, any> = {};
+
   appointments.forEach(appt => {
+
     const date = appt.date.split('T')[0];
-    if (!marked[date]) {
-      marked[date] = { marked: true, dotColor: getDotColor(appt.type) };
-    } else {
-      marked[date].dots = marked[date].dots || [];
-      marked[date].dots.push({ color: getDotColor(appt.type) });
-    }
+
+    marked[date] = {
+      selected: true,
+      selectedColor: '#3f51b5',
+      selectedTestColor: '#ffffff',
+    };
 
     if (selectedAppointment && isSameDay(parseISO(appt.date), parseISO(selectedAppointment.date))) {
-      marked[date].selected = true;
-      marked[date].selectedColor = '#3f51b5';
+      marked[date] = {
+        ...marked[date],
+        selectedColor: '#1e3a8a',
+      };
     }
   });
 

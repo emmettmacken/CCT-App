@@ -18,7 +18,7 @@ const MOCK_USER = {
 const MOCK_APPOINTMENTS = [
   {
     id: '1',
-    date: '22 July 2025',
+    date: '12 August 2025',
     time: '15:00 PM',
     title: 'Follow-up',
     location: 'Clinic A, Floor 2',
@@ -26,7 +26,7 @@ const MOCK_APPOINTMENTS = [
   },
   {
     id: '2',
-    date: '25 July 2025',
+    date: '19 August 2025',
     time: '11:00 AM',
     title: 'Treatment Administration',
     location: 'Treatment Room 5, Floor 4',
@@ -34,7 +34,7 @@ const MOCK_APPOINTMENTS = [
   },
   {
     id: '3',
-    date: '28 July 2025',
+    date: '22 August 2025',
     time: '09:00 AM',
     title: 'CT Scan',
     location: 'Radiology Dept, Floor 2',

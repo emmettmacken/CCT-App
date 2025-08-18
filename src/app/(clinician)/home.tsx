@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../../backend/supabaseClient';
-import { styles } from '../../styles/clinicianhome.styles';
+import { styles } from '../../styles/clinicianHome.styles';
 
 import AlertsSection from '../../components/ui/AlertsSection';
 import AppointmentsSection from '../../components/ui/AppointmentsSection';
@@ -33,10 +33,46 @@ const ClinicianHomeScreen = () => {
           .lte('date', todayEnd.toISOString())
           .order('time', { ascending: true });
 
-        const formattedAppointments = appointmentsData?.map(appt => ({
+        let formattedAppointments: Appointment[] = appointmentsData?.map(appt => ({
           ...appt,
           patient_name: appt.patients?.[0]?.name || 'Unknown Patient',
         })) || [];
+
+        // ✅ Add mock data if no appointments are found
+        if (formattedAppointments.length === 0) {
+          formattedAppointments = [
+            {
+              id: 'mock-1',
+              patient_id: 'p-101',
+              patient_name: 'Anne Marie Ryan',
+              date: todayStart.toISOString(),
+              time: '09:00',
+              type: 'Bloods',
+              status: 'confirmed',
+              notes: 'Trial bloods to be sent to lab',
+            },
+            {
+              id: 'mock-2',
+              patient_id: 'p-102',
+              patient_name: 'Sean Treacy',
+              date: todayStart.toISOString(),
+              time: '11:00',
+              type: 'Follow-up',
+              status: 'confirmed',
+              notes: 'Follow-up on recent treatment',
+            },
+            {
+              id: 'mock-3',
+              patient_id: 'p-103',
+              patient_name: 'Cian Cleary',
+              date: todayStart.toISOString(),
+              time: '14:30',
+              type: 'Consultation',
+              status: 'confirmed',
+              notes: 'Initial consultation for ISA',
+            },
+          ];
+        }
 
         setAppointments(formattedAppointments);
 

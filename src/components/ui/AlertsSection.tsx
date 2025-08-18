@@ -2,7 +2,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { Card, List, Button, Badge } from 'react-native-paper';
 import { Alert } from '../../types/clinician';
-import { styles } from '../../styles/clinicianhome.styles';
+import { styles } from '../../styles/clinicianHome.styles';
 
 interface Props {
   alerts: Alert[];

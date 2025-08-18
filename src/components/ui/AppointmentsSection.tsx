@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Card, List, Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../styles/clinicianhome.styles';
+import { styles } from '../../styles/clinicianHome.styles';
 import { Appointment } from '../../types/clinician';
 
 interface Props {

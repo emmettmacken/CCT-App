@@ -21,6 +21,18 @@ export const useMedications = () => {
           supabase.from('additional_medications').select('*').eq('patient_id', user.id).order('taken_at', { ascending: false }),
         ]);
 
+        let trialData = trialMeds.data || [];
+
+        if (trialData.length === 0) {
+          trialData.push({
+            id: "sample-1",
+            name: "Sample Trial Medication",
+            dosage: "100mg",
+            frequency: "Once daily",
+            startDate: new Date().toISOString(),
+          })
+        }
+
         setTrialMedications(trialMeds.data || []);
         setMedicationLogs(logs.data || []);
         setAdditionalMeds(extraMeds.data || []);

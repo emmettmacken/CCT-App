@@ -6,7 +6,7 @@ import { Appointment, AppointmentData } from '../../types/appointments';
 import AppointmentModal from '../../components/AppointmentModal';
 
 const MockData: Record<string, any> = {
-  '2025-07-22': {
+  '2025-08-13': {
     customStyles: {
       container: {
         backgroundColor: '#3f51b5',
@@ -21,7 +21,7 @@ const MockData: Record<string, any> = {
       }
     },
     appointmentData: {
-      dateTime: '2025-07-22T15:00:00',
+      dateTime: '2025-08-13T15:00:00',
       location: 'Clinic A',
       description: 'Follow-up appointment with Dr. Smith',
       duration: 30,
@@ -33,7 +33,7 @@ const MockData: Record<string, any> = {
       special_instructions: 'Bring your medical records and any current medications.'
     }
   },
-  '2025-07-25': {
+  '2025-08-19': {
     customStyles: {
       container: {
         backgroundColor: '#3f51b5',
@@ -48,7 +48,7 @@ const MockData: Record<string, any> = {
       }
     },
     appointmentData: {
-      dateTime: '2025-07-25T11:00:00',
+      dateTime: '2025-08-19T11:00:00',
       location: 'Clinic B',
       description: 'Treatment Administration with Dr. Doe',
       duration: 60,
@@ -60,7 +60,7 @@ const MockData: Record<string, any> = {
       special_instructions: 'Take anti-nausea medication 1 hour before the appointment and arrange transport home.'
     }
   },
-  '2025-07-28': {
+  '2025-08-22': {
     customStyles: {
       container: {
         backgroundColor: '#3f51b5',
@@ -75,7 +75,7 @@ const MockData: Record<string, any> = {
       }
     },
     appointmentData: {
-      dateTime: '2025-07-28T09:00:00',
+      dateTime: '2025-07-22T09:00:00',
       location: 'Radiology Dept',
       description: 'CT Scan with Dr. Brown',
       duration: 40,
@@ -129,8 +129,8 @@ const CalendarScreen = () => {
         If you cannot attend your scheduled appointment, please contact Clinical Trials Office at 087 382 4221 at your earliest convenience
       </Text>
       <Calendar
-        current={'2025-07-17'}
-        minDate={'2025-07-17'}
+        current={'2025-08-13'}
+        minDate={'2025-08-13'}
         maxDate={'2025-12-31'}
         markingType={'custom'}
         markedDates={appointments}
