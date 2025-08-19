@@ -21,7 +21,10 @@ export const TrialMedicationsSection: React.FC<Props> = ({
   setSelectedTrialMed,
   onLogPress
 }) => {
-  const formatDateTime = (dateString: string) => format(parseISO(dateString), 'MMM d, yyyy - h:mm a');
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "Unknown time";
+    return format(parseISO(dateString), 'MMM d, yyyy - h:mm a');
+  }
 
   return (
     <Card style={styles.sectionCard}>
@@ -39,7 +42,8 @@ export const TrialMedicationsSection: React.FC<Props> = ({
                     onPress={() => setSelectedTrialMed(med)}
                   />
                   <Text style={styles.radioLabel}>{med.name} ({med.dosage})</Text>
-                </View>
+                  <Text style={styles.radioLabel}>Suggested time: {med.scheduled_time || 'No suggested time'}</Text>
+                  </View>
               ))}
             </View>
 

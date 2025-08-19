@@ -42,7 +42,7 @@ export const AdditionalMedicationsSection: React.FC<Props> = ({ additionalMeds, 
                   <View style={styles.sideEffectsContainer}>
                     {med.side_effects && (
                       <Text style={styles.sideEffectsText}>
-                        Side effects: {med.side_effects}
+                        Side effects: {med.side_effects || 'None reported'}
                       </Text>
                     )}
                   </View>
