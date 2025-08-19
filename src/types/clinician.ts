@@ -1,4 +1,6 @@
 export interface Appointment {
+  location: any;
+  title: Title;
   id: string;
   patient_id: string;
   patient_name: string;

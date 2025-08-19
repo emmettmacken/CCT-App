@@ -38,8 +38,8 @@ const ClinicianHomeScreen = () => {
           patient_name: appt.patients?.[0]?.name || 'Unknown Patient',
         })) || [];
 
-        // ✅ Add mock data if no appointments are found
-        if (formattedAppointments.length === 0) {
+        
+        /* if (formattedAppointments.length === 0) {
           formattedAppointments = [
             {
               id: 'mock-1',
@@ -72,7 +72,7 @@ const ClinicianHomeScreen = () => {
               notes: 'Initial consultation for ISA',
             },
           ];
-        }
+        } */
 
         setAppointments(formattedAppointments);
 
