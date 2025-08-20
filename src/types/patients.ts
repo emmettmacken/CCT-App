@@ -2,14 +2,17 @@ export interface Patient {
   id: string;
   name: string;
   age: number;
-  diagnosis: string;
-  last_appointment: string;
-  alerts: number;
+  trial_name: string;
+  trial_phase: string;
+  trial_progress: number;
 }
 
 export interface Appointment {
+  location: any;
+  title: any;
   id: string;
   date: string;
+  time: string;
   type: string;
   status: 'completed' | 'missed' | 'upcoming';
   notes?: string;

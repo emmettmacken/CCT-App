@@ -38,6 +38,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
+    marginLeft: 20,
   },
   avatarText: {
     color: 'white',

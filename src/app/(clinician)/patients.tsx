@@ -1,48 +1,74 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { List, Card, TextInput, Button, Chip, Badge } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../../../backend/supabaseClient';
-import { format, parseISO } from 'date-fns';
-import { styles } from '../../styles/patients.styles'
-import { Patient, Appointment, Medication, ClinicianNote, Alert } from '../../types/patients';
+import { format, parseISO } from "date-fns";
+import React, { useEffect, useState } from "react";
+import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Button, Card, Chip, List, TextInput } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { supabase } from "../../../backend/supabaseClient";
+import { styles } from "../../styles/patients.styles";
+import {
+  Alert,
+  Appointment,
+  ClinicianNote,
+  Medication,
+  Patient,
+} from "../../types/patients";
 
+type ListPatient = {
+  id: string;
+  name: string | null;
+  trial_name: string | null;
+  trial_phase: string | null;
+  trial_progress: number | null;
+};
+
+const TRIAL_FILTERS = ["All", "ISA", "ASCENT", "Unassigned"] as const;
+type TrialFilter = (typeof TRIAL_FILTERS)[number];
+
+const getAppointmentDateTime = (appt: any) => {
+  if (appt.time) {
+    return parseISO(`${appt.date}T${appt.time}`);
+  }
+  return parseISO(appt.date);
+};
 const PatientListScreen = ({ navigation }: { navigation: any }) => {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [diagnosisFilter, setDiagnosisFilter] = useState('all');
+  const [patients, setPatients] = useState<ListPatient[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<ListPatient[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [trialFilter, setTrialFilter] = useState<TrialFilter>("All");
   const [loading, setLoading] = useState(true);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
 
+        // Pull directly from public.profiles using existing columns
         const { data, error } = await supabase
-          .from('patient_clinician')
-          .select(`
-            patient:patient_id(id, name, age, diagnosis, last_appointment),
-            alerts:alerts(count)
-          `)
-          .eq('clinician_id', user.id);
+          .from("profiles")
+          .select("id, name, role, trial_name, trial_phase, trial_progress")
+          .eq("role", "patient");
 
         if (error) throw error;
 
-        const formattedPatients = data?.map(item => ({
-          id: item.patient[0]?.id,
-          name: item.patient[0]?.name,
-          age: item.patient[0]?.age,
-          diagnosis: item.patient[0]?.diagnosis,
-          last_appointment: item.patient[0]?.last_appointment,
-          alerts: item.alerts[0]?.count || 0
-        })) || [];
+        const formatted: ListPatient[] = (data ?? []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          trial_name: item.trial_name,
+          trial_phase: item.trial_phase,
+          trial_progress: item.trial_progress,
+        }));
 
-        setPatients(formattedPatients);
-        setFilteredPatients(formattedPatients);
+        setPatients(formatted);
+        setFilteredPatients(formatted);
       } catch (error) {
-        console.error('Error fetching patients:', error);
+        console.error("Error fetching patients:", error);
       } finally {
         setLoading(false);
       }
@@ -50,11 +76,12 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
     fetchPatients();
 
+    // Listen for changes to profiles (e.g., trial assignment updates)
     const subscription = supabase
-      .channel('patient-changes')
+      .channel("profiles-patient-changes")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'patient_clinician' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
         () => fetchPatients()
       )
       .subscribe();
@@ -66,23 +93,29 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
   useEffect(() => {
     let result = [...patients];
-    
-    // Apply search filter
+
+    // Search by name
     if (searchQuery) {
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const q = searchQuery.toLowerCase();
+      result = result.filter((p) => (p.name ?? "").toLowerCase().includes(q));
     }
-    
-    // Apply diagnosis filter
-    if (diagnosisFilter !== 'all') {
-      result = result.filter(p => 
-        p.diagnosis.toLowerCase().includes(diagnosisFilter.toLowerCase())
-      );
+
+    // Filter by trial assignment
+    if (trialFilter !== "All") {
+      if (trialFilter === "Unassigned") {
+        result = result.filter(
+          (p) => !p.trial_name || p.trial_name.trim() === ""
+        );
+      } else {
+        result = result.filter(
+          (p) =>
+            (p.trial_name ?? "").toLowerCase() === trialFilter.toLowerCase()
+        );
+      }
     }
-    
+
     setFilteredPatients(result);
-  }, [searchQuery, diagnosisFilter, patients]);
+  }, [searchQuery, trialFilter, patients]);
 
   if (loading) {
     return (
@@ -93,7 +126,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.filterContainer}>
         <TextInput
           label="Search patients"
@@ -103,54 +136,46 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
           mode="outlined"
           left={<TextInput.Icon icon="magnify" />}
         />
-        
+
         <View style={styles.chipContainer}>
-          <Chip
-            selected={diagnosisFilter === 'all'}
-            onPress={() => setDiagnosisFilter('all')}
-            style={styles.chip}
-          >
-            All
-          </Chip>
-          <Chip
-            selected={diagnosisFilter === 'ISA'}
-            onPress={() => setDiagnosisFilter('ISA')}
-            style={styles.chip}
-          >
-            ISA
-          </Chip>
+          {TRIAL_FILTERS.map((val) => (
+            <Chip
+              key={val}
+              selected={trialFilter === val}
+              onPress={() => setTrialFilter(val)}
+              style={styles.chip}
+            >
+              {val}
+            </Chip>
+          ))}
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {filteredPatients.length > 0 ? (
           <List.Section>
-            {filteredPatients.map(patient => (
+            {filteredPatients.map((patient) => (
               <List.Item
                 key={patient.id}
-                title={patient.name}
-                description={`${patient.age} years | ${patient.diagnosis}`}
+                title={patient.name ?? "Unnamed"}
+                description={`Trial: ${
+                  patient.trial_name ?? "Unassigned"
+                }  ·  Phase: ${patient.trial_phase ?? "-"}  ·  Progress: ${
+                  patient.trial_progress ?? 0
+                }%`}
                 left={() => (
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
-                      {patient.name.charAt(0).toUpperCase()}
+                      {(patient.name ?? "?").charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
-                right={() => (
-                  <View style={styles.rightContent}>
-                    <Text style={styles.dateText}>
-                      {format(parseISO(patient.last_appointment), 'MMM d')}
-                    </Text>
-                    {patient.alerts > 0 && (
-                      <Badge size={24} style={styles.badge}>
-                        {patient.alerts}
-                      </Badge>
-                    )}
-                  </View>
-                )}
+                // Removed last_appointment + alerts UI since those fields aren't in profiles schema
                 style={styles.listItem}
-                onPress={() => navigation.navigate('PatientProfile', { patientId: patient.id })}
+                onPress={() => {
+                  setSelectedPatientId(patient.id);
+                  setShowProfileModal(true);
+                }}
               />
             ))}
           </List.Section>
@@ -158,18 +183,41 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
           <Text style={styles.noPatientsText}>No patients found</Text>
         )}
       </ScrollView>
+      {/* Patient Profile Modal */}
+      <Modal
+        visible={showProfileModal}
+        onRequestClose={() => setShowProfileModal(false)}
+        animationType="slide"
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
+          {selectedPatientId && (
+            <PatientProfileScreen
+              patientId={selectedPatientId}
+              onClose={() => setShowProfileModal(false)}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
 
-const PatientProfileScreen = ({ route }: { route: { params: { patientId: string } } }) => {
-  const { patientId } = route.params;
+const PatientProfileScreen = ({
+  patientId,
+  onClose,
+}: {
+  patientId: string;
+  onClose: () => void;
+}) => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [notes, setNotes] = useState<ClinicianNote[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [activeTab, setActiveTab] = useState('appointments');
+  const [activeTab, setActiveTab] = useState("appointments");
   const [loading, setLoading] = useState(true);
   const [editMedId, setEditMedId] = useState<string | null>(null);
   const [editMedData, setEditMedData] = useState<Partial<Medication>>({});
@@ -180,56 +228,59 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
       try {
         // Fetch patient details
         const { data: patientData, error: patientError } = await supabase
-          .from('patients')
-          .select('*')
-          .eq('id', patientId)
+          .from("profiles")
+          .select("*")
+          .eq("id", patientId)
           .single();
 
         if (patientError) throw patientError;
 
         // Fetch appointments
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('date', { ascending: false });
+        const { data: appointmentsData, error: appointmentsError } =
+          await supabase
+            .from("appointments")
+            .select("*")
+            .eq("user_id", patientId)
+            .gte('date', new Date().toISOString().split('T')[0]) // only shows today or future appointments
+            .order("date", { ascending: true });
 
         if (appointmentsError) throw appointmentsError;
 
         // Fetch medications
-        const { data: medicationsData, error: medicationsError } = await supabase
-          .from('medications')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('start_date', { ascending: false });
+        const { data: medicationsData, error: medicationsError } =
+          await supabase
+            .from("trial_medications")
+            .select("*")
+            .eq("user_id", patientId)
+            .order("name", { ascending: true });
 
         if (medicationsError) throw medicationsError;
 
-        // Fetch clinician notes
+        /* Fetch clinician notes
         const { data: notesData, error: notesError } = await supabase
-          .from('clinician_notes')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('created_at', { ascending: false });
+          .from("clinician_notes")
+          .select("*")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false });
 
         if (notesError) throw notesError;
 
         // Fetch alerts
         const { data: alertsData, error: alertsError } = await supabase
-          .from('patient_alerts')
-          .select('*')
-          .eq('patient_id', patientId)
-          .eq('active', true);
+          .from("patient_alerts")
+          .select("*")
+          .eq("patient_id", patientId)
+          .eq("active", true);
 
-        if (alertsError) throw alertsError;
+        if (alertsError) throw alertsError; */
 
         setPatient(patientData);
         setAppointments(appointmentsData || []);
         setMedications(medicationsData || []);
-        setNotes(notesData || []);
-        setAlerts(alertsData || []);
+        /*setNotes(notesData || []);
+        setAlerts(alertsData || []);*/
       } catch (error) {
-        console.error('Error fetching patient data:', error);
+        console.error("Error fetching patient data:", error);
       } finally {
         setLoading(false);
       }
@@ -238,27 +289,27 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
     fetchPatientData();
 
     const subscription = supabase
-      .channel('patient-profile')
+      .channel("patient-profile")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'appointments' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
         () => fetchPatientData()
       )
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'medications' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "medications" },
+        () => fetchPatientData()
+      )
+      /*.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clinician_notes" },
         () => fetchPatientData()
       )
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'clinician_notes' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "patient_alerts" },
         () => fetchPatientData()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'patient_alerts' },
-        () => fetchPatientData()
-      )
+      )*/
       .subscribe();
 
     return () => {
@@ -271,14 +322,14 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
 
     try {
       await supabase
-        .from('medications')
+        .from("trial_medications")
         .update(editMedData)
-        .eq('id', editMedId);
+        .eq("id", editMedId);
 
       setShowMedModal(false);
       setEditMedId(null);
     } catch (error) {
-      console.error('Error updating medication:', error);
+      console.error("Error updating medication:", error);
     }
   };
 
@@ -291,10 +342,14 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.profileContainer}>
         {/* Patient Header */}
         <View style={styles.profileHeader}>
+          <Button mode="text" onPress={onClose}>
+            Close
+          </Button>
+
           <View style={styles.profileAvatar}>
             <Text style={styles.profileAvatarText}>
               {patient.name.charAt(0).toUpperCase()}
@@ -302,7 +357,7 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
           </View>
           <Text style={styles.profileName}>{patient.name}</Text>
           <Text style={styles.profileDetails}>
-            {patient.age} years | {patient.diagnosis}
+            {patient.age} years | {patient.trial_name}
           </Text>
         </View>
 
@@ -311,16 +366,22 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
           <Card style={styles.alertCard}>
             <Card.Title title="Alerts" titleStyle={styles.cardTitle} />
             <Card.Content>
-              {alerts.map(alert => (
+              {alerts.map((alert) => (
                 <View key={alert.id} style={styles.alertItem}>
-                  <View style={[
-                    styles.alertIcon,
-                    alert.type === 'fasting' && styles.fastingAlert,
-                    alert.type === 'allergy' && styles.allergyAlert,
-                    alert.type === 'precaution' && styles.precautionAlert,
-                  ]}>
+                  <View
+                    style={[
+                      styles.alertIcon,
+                      alert.type === "fasting" && styles.fastingAlert,
+                      alert.type === "allergy" && styles.allergyAlert,
+                      alert.type === "precaution" && styles.precautionAlert,
+                    ]}
+                  >
                     <Text style={styles.alertIconText}>
-                      {alert.type === 'fasting' ? 'F' : alert.type === 'allergy' ? 'A' : 'P'}
+                      {alert.type === "fasting"
+                        ? "F"
+                        : alert.type === "allergy"
+                        ? "A"
+                        : "P"}
                     </Text>
                   </View>
                   <Text style={styles.alertText}>{alert.message}</Text>
@@ -335,54 +396,61 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'appointments' && styles.activeTab
+              activeTab === "appointments" && styles.activeTab,
             ]}
-            onPress={() => setActiveTab('appointments')}
+            onPress={() => setActiveTab("appointments")}
           >
             <Text style={styles.tabText}>Appointments</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'medications' && styles.activeTab
+              activeTab === "medications" && styles.activeTab,
             ]}
-            onPress={() => setActiveTab('medications')}
+            onPress={() => setActiveTab("medications")}
           >
             <Text style={styles.tabText}>Medications</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'notes' && styles.activeTab
+              activeTab === "notes" && styles.activeTab,
             ]}
-            onPress={() => setActiveTab('notes')}
+            onPress={() => setActiveTab("notes")}
           >
             <Text style={styles.tabText}>Notes</Text>
           </TouchableOpacity>
         </View>
 
         {/* Appointments Tab */}
-        {activeTab === 'appointments' && (
+        {activeTab === "appointments" && (
           <Card style={styles.contentCard}>
             <Card.Content>
               {appointments.length > 0 ? (
                 <List.Section>
-                  {appointments.map(appt => (
+                  {appointments.map((appt) => (
                     <List.Item
                       key={appt.id}
-                      title={format(parseISO(appt.date), 'PPPPp')}
-                      description={`${appt.type} - ${appt.status}`}
+                      title={format(
+                        getAppointmentDateTime(appt),
+                        appt.time ? "PPPPp" : "PPPP"
+                      )}
+                      description={`${appt.title} - ${appt.location}`}
                       left={() => (
-                        <View style={[
-                          styles.statusIndicator,
-                          appt.status === 'completed' && styles.completedStatus,
-                          appt.status === 'missed' && styles.missedStatus,
-                          appt.status === 'upcoming' && styles.upcomingStatus,
-                        ]} />
+                        <View
+                          style={[
+                            styles.statusIndicator,
+                            appt.status === "completed" &&
+                              styles.completedStatus,
+                            appt.status === "upcoming" && styles.upcomingStatus,
+                          ]}
+                        />
                       )}
-                      right={() => appt.notes && (
-                        <List.Icon icon="note-text" color="#666" />
-                      )}
+                      right={() =>
+                        appt.notes && (
+                          <List.Icon icon="note-text" color="#666" />
+                        )
+                      }
                       style={styles.listItem}
                     />
                   ))}
@@ -395,12 +463,12 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
         )}
 
         {/* Medications Tab */}
-        {activeTab === 'medications' && (
+        {activeTab === "medications" && (
           <Card style={styles.contentCard}>
             <Card.Content>
               {medications.length > 0 ? (
                 <List.Section>
-                  {medications.map(med => (
+                  {medications.map((med) => (
                     <List.Item
                       key={med.id}
                       title={med.name}
@@ -414,7 +482,7 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
                             setEditMedData({
                               dosage: med.dosage,
                               frequency: med.frequency,
-                              notes: med.notes
+                              notes: med.notes,
                             });
                             setShowMedModal(true);
                           }}
@@ -434,16 +502,19 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
         )}
 
         {/* Notes Tab */}
-        {activeTab === 'notes' && (
+        {activeTab === "notes" && (
           <Card style={styles.contentCard}>
             <Card.Content>
               {notes.length > 0 ? (
                 <List.Section>
-                  {notes.map(note => (
+                  {notes.map((note) => (
                     <List.Item
                       key={note.id}
                       title={note.author}
-                      description={`${format(parseISO(note.created_at), 'PP')}\n${note.content}`}
+                      description={`${format(
+                        parseISO(note.created_at),
+                        "PP"
+                      )}\n${note.content}`}
                       left={() => <List.Icon icon="note" />}
                       style={styles.listItem}
                     />
@@ -463,30 +534,39 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
         onRequestClose={() => setShowMedModal(false)}
         animationType="slide"
       >
-        <SafeAreaView style={styles.modalContainer} edges={['top', 'left', 'right']}>
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
           <ScrollView contentContainerStyle={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Medication</Text>
-            
+
             <TextInput
               label="Dosage"
-              value={editMedData.dosage || ''}
-              onChangeText={text => setEditMedData({...editMedData, dosage: text})}
+              value={editMedData.dosage || ""}
+              onChangeText={(text) =>
+                setEditMedData({ ...editMedData, dosage: text })
+              }
               style={styles.input}
               mode="outlined"
             />
 
             <TextInput
               label="Frequency"
-              value={editMedData.frequency || ''}
-              onChangeText={text => setEditMedData({...editMedData, frequency: text})}
+              value={editMedData.frequency || ""}
+              onChangeText={(text) =>
+                setEditMedData({ ...editMedData, frequency: text })
+              }
               style={styles.input}
               mode="outlined"
             />
 
             <TextInput
               label="Notes"
-              value={editMedData.notes || ''}
-              onChangeText={text => setEditMedData({...editMedData, notes: text})}
+              value={editMedData.notes || ""}
+              onChangeText={(text) =>
+                setEditMedData({ ...editMedData, notes: text })
+              }
               style={styles.input}
               mode="outlined"
               multiline
@@ -494,15 +574,15 @@ const PatientProfileScreen = ({ route }: { route: { params: { patientId: string 
             />
 
             <View style={styles.buttonRow}>
-              <Button 
-                mode="outlined" 
+              <Button
+                mode="outlined"
                 onPress={() => setShowMedModal(false)}
                 style={styles.cancelButton}
               >
                 Cancel
               </Button>
-              <Button 
-                mode="contained" 
+              <Button
+                mode="contained"
                 onPress={handleUpdateMedication}
                 style={styles.submitButton}
                 disabled={!editMedData.dosage || !editMedData.frequency}

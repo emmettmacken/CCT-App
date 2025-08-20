@@ -50,7 +50,9 @@ const MedicationTrackingScreen = () => {
     const { data: logsData, error: logsError } = await supabase
       .from('medication_logs')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .gte('taken_at', new Date().toISOString().split('T')[0]) 
+      .order("taken_at", { ascending: true });
 
     if (logsError) console.log('Error fetching logs:', logsError.message);
     else setMedicationLogs(logsData || []);

@@ -41,8 +41,14 @@ export const TrialMedicationsSection: React.FC<Props> = ({
                     status={selectedTrialMed?.id === med.id ? 'checked' : 'unchecked'}
                     onPress={() => setSelectedTrialMed(med)}
                   />
-                  <Text style={styles.radioLabel}>{med.name} ({med.dosage})</Text>
-                  <Text style={styles.radioLabel}>Suggested time: {med.scheduled_time || 'No suggested time'}</Text>
+                  <Text style={styles.radioLabel}>{med.name} ({med.dosage}) :</Text>
+                  <Text>
+                  <Text style={styles.radioLabel}> Frequency: </Text>
+                    {med.frequency || 'Consult your clinician'}
+                  </Text>
+                  <Text>
+                  <Text style={styles.radioLabel}> Notes: </Text>
+                    {med.notes || 'No notes given'}</Text>
                   </View>
               ))}
             </View>

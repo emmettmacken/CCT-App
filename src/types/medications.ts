@@ -3,8 +3,8 @@ export interface Medication {
   patient_trial_id: string;
   name: string;
   dosage: string;
-  start_day: number | null;
-  end_day: number | null;
+  frequency: string;
+  notes?: string | null;
 }
 
 export interface MedicationLog {
