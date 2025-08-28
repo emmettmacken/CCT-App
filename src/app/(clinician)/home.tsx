@@ -4,15 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../../backend/supabaseClient';
 import { styles } from '../../styles/clinicianHome.styles';
 
-import AlertsSection from '../../components/ui/AlertsSection';
 import AppointmentsSection from '../../components/ui/AppointmentsSection';
 import QuickLinksSection from '../../components/ui/QuickLinksSection';
 
-import { Appointment, Alert } from '../../types/clinician';
+import { Appointment } from '../../types/clinician';
 
 const ClinicianHomeScreen = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,65 +24,32 @@ const ClinicianHomeScreen = () => {
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);
 
-        const { data: appointmentsData } = await supabase
+        const { data: appointmentsData, error } = await supabase
           .from('appointments')
-          .select(`id, patient_id, patients:patient_id(name), date, time, type, status, notes`)
+          .select(`
+            id,
+            user_id,
+            title,
+            date,
+            time,
+            location,
+            requirements,
+            profiles ( name )
+          `)
           .gte('date', todayStart.toISOString())
           .lte('date', todayEnd.toISOString())
           .order('time', { ascending: true });
 
-        let formattedAppointments: Appointment[] = appointmentsData?.map(appt => ({
-          ...appt,
-          patient_name: appt.patients?.[0]?.name || 'Unknown Patient',
-        })) || [];
+        if (error) throw error;
 
-        
-        /* if (formattedAppointments.length === 0) {
-          formattedAppointments = [
-            {
-              id: 'mock-1',
-              patient_id: 'p-101',
-              patient_name: 'Anne Marie Ryan',
-              date: todayStart.toISOString(),
-              time: '09:00',
-              type: 'Bloods',
-              status: 'confirmed',
-              notes: 'Trial bloods to be sent to lab',
-            },
-            {
-              id: 'mock-2',
-              patient_id: 'p-102',
-              patient_name: 'Sean Treacy',
-              date: todayStart.toISOString(),
-              time: '11:00',
-              type: 'Follow-up',
-              status: 'confirmed',
-              notes: 'Follow-up on recent treatment',
-            },
-            {
-              id: 'mock-3',
-              patient_id: 'p-103',
-              patient_name: 'Cian Cleary',
-              date: todayStart.toISOString(),
-              time: '14:30',
-              type: 'Consultation',
-              status: 'confirmed',
-              notes: 'Initial consultation for ISA',
-            },
-          ];
-        } */
+        const formattedAppointments: Appointment[] =
+          appointmentsData?.map(appt => ({
+            ...appt,
+            patient_name: appt.profiles?.name || 'Unknown Patient',
+          })) || [];
 
         setAppointments(formattedAppointments);
 
-        const { data: alertsData } = await supabase
-          .from('alerts')
-          .select('*')
-          .eq('clinician_id', user.id)
-          .eq('read', false)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        setAlerts(alertsData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -93,44 +58,7 @@ const ClinicianHomeScreen = () => {
     };
 
     fetchData();
-
-    const subscription = supabase
-      .channel('clinician-alerts')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, payload => {
-        setAlerts(prev => [payload.new as Alert, ...prev]);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
   }, []);
-
-  const handleMarkAsRead = async (alertId: string) => {
-    try {
-      await supabase.from('alerts').update({ read: true }).eq('id', alertId);
-      setAlerts(prev => prev.filter(a => a.id !== alertId));
-    } catch (error) {
-      console.error('Error marking alert as read:', error);
-    }
-  };
-
-  const getAlertIcon = (type: Alert['type']) => {
-    switch (type) {
-      case 'patient_message': return 'message-text';
-      case 'medication_alert': return 'alert-circle';
-      case 'appointment_change': return 'calendar-alert';
-      default: return 'alert';
-    }
-  };
-
-  const getAlertColor = (type: Alert['type']) => {
-    switch (type) {
-      case 'medication_alert': return '#d32f2f';
-      case 'appointment_change': return '#ff9800';
-      default: return '#3f51b5';
-    }
-  };
 
   if (loading) {
     return (
@@ -143,12 +71,6 @@ const ClinicianHomeScreen = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <AlertsSection
-          alerts={alerts}
-          onMarkAsRead={handleMarkAsRead}
-          getAlertIcon={getAlertIcon}
-          getAlertColor={getAlertColor}
-        />
         <AppointmentsSection appointments={appointments} />
         <QuickLinksSection />
       </ScrollView>

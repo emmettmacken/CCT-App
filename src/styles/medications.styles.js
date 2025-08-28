@@ -37,7 +37,7 @@ export const styles = StyleSheet.create({
   radioLabel: {
     marginLeft: 8,
     color: '#333',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   logButton: {
     marginTop: 10,

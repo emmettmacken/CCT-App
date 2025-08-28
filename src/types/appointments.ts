@@ -8,6 +8,7 @@ export type Appointment = {
     fasting_required?: boolean;
     medications_to_avoid?: string;
     special_instructions?: string;
+    name?: string;
 };
 export type AppointmentData = {
     marked: boolean;

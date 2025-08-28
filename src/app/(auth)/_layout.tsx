@@ -32,7 +32,7 @@ export default function AuthLayout() {
 
         const role = profile.role;
         if (role === "clinician") router.replace("/(clinician)/home");
-        else if (role === "admin") router.replace("../admin");
+        else if (role === "admin") router.replace("/(admin)/home");
         else router.replace("/(patient)/home");
       }
       setLoading(false);

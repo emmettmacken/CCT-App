@@ -472,7 +472,7 @@ const PatientProfileScreen = ({
                     <List.Item
                       key={med.id}
                       title={med.name}
-                      description={`${med.dosage} - ${med.frequency}`}
+                      description={`${med.dosage} - ${med.frequency} - ${med.notes}`}
                       left={() => <List.Icon icon="pill" />}
                       right={() => (
                         <Button

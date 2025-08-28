@@ -25,8 +25,8 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
             {appointments.map(appt => (
               <List.Item
                 key={appt.id}
-                title={appt.patient_name}
-                description={`${appt.type} at ${appt.time}`}
+                title={appt.profiles?.name || 'Unknown Patient'}
+                description={`${appt.title} at ${appt.time}`}
                 left={() => (
                   <View style={[
                     styles.statusIndicator,
@@ -37,7 +37,7 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
                 right={() => (
                   <Button 
                     mode="outlined" 
-                    onPress={() => navigation.navigate('AppointmentDetails', { id: appt.id })}
+                    onPress={() => navigation.navigate('Appointments', { id: appt.id })}
                     style={styles.viewButton}
                     labelStyle={styles.viewButtonLabel}
                   >

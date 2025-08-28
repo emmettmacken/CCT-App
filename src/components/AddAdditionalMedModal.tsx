@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Modal } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';  
 import { AdditionalMedication } from '../types/medications';
 import { supabase } from '../../backend/supabaseClient';
 import { styles } from '../styles/medications.styles';
@@ -17,7 +18,7 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
     dosage: '',
     reason: '',
     side_effects: '',
-    patient_id: '',
+    user_id: '',
     taken_at: new Date().toISOString()
   });
 
@@ -27,19 +28,20 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
       if (!user) return;
 
       const { error } = await supabase
-        .from('additional_medications')
+        .from('additional_medications_logs')
         .insert([{
           ...newMed,
-          patient_id: user.id,
+          user_id: user.id,
           taken_at: new Date().toISOString()
         }]);
 
       if (error) throw error;
 
       const { data: updated } = await supabase
-        .from('additional_medications')
+        .from('additional_medications_logs')
         .select('*')
-        .eq('patient_id', user.id)
+        .eq('user_id', user.id)
+        .gte('taken_at', new Date().toISOString().split('T')[0])
         .order('taken_at', { ascending: false });
 
       if (updated) refreshMeds(updated);
@@ -49,7 +51,7 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
         dosage: '',
         reason: '',
         side_effects: '',
-        patient_id: '',
+        user_id: '',
         taken_at: new Date().toISOString()
       });
     } catch (error) {
@@ -59,7 +61,7 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
 
   return (
     <Modal visible={visible} onRequestClose={onClose} animationType="slide">
-      <View style={styles.modalContainer}>
+      <SafeAreaView style={styles.modalContainer} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.modalContent}>
           <Text style={styles.modalTitle}>Add Additional Medication</Text>
 
@@ -109,7 +111,7 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
             </Button>
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };

@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Card, Button, List } from 'react-native-paper';
-import { AdditionalMedication } from '../../types/medications';
+import { AdditionalMedication, MedicationLog } from '../../types/medications';
 import { format, parseISO } from 'date-fns';
 import { styles } from '../../styles/medications.styles';
 
 interface Props {
   additionalMeds: AdditionalMedication[];
+  medicationLogs: MedicationLog[];
   onAddPress: () => void;
 }
 

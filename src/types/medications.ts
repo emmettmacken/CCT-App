@@ -18,7 +18,7 @@ export interface MedicationLog {
 
 export interface AdditionalMedication {
   id: string;
-  patient_id: string;
+  user_id: string;
   name: string;
   dosage: string;
   taken_at: string;

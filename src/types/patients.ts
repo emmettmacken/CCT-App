@@ -34,10 +34,3 @@ export interface ClinicianNote {
   content: string;
   author: string;
 }
-
-export interface Alert {
-  id: string;
-  type: 'fasting' | 'allergy' | 'precaution';
-  message: string;
-  active: boolean;
-}

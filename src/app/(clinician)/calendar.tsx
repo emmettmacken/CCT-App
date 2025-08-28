@@ -103,12 +103,7 @@ const ClinicianCalendarScreen = () => {
         setSelectedType={setSelectedType}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        patients={patients.length > 0 ? patients : [
-          { id: 'p-101', name: 'Anne Marie Ryan'},
-          { id: 'p-102', name: 'Sean Treacy'},
-          { id: 'p-103', name: 'Cian Cleary'},
-          { id: 'p-104', name: 'Conor Lydon'},
-        ]}
+        patients={patients}
       />
       <CalendarView
         markedDates={getMarkedDates(filteredAppointments, selectedAppointments[0] || null)}
