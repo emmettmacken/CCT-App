@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
 import { styles } from "../../styles/patients.styles";
 import {
-  Alert,
   Appointment,
   ClinicianNote,
   Medication,
@@ -216,7 +215,6 @@ const PatientProfileScreen = ({
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [notes, setNotes] = useState<ClinicianNote[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [activeTab, setActiveTab] = useState("appointments");
   const [loading, setLoading] = useState(true);
   const [editMedId, setEditMedId] = useState<string | null>(null);
@@ -360,36 +358,6 @@ const PatientProfileScreen = ({
             {patient.age} years | {patient.trial_name}
           </Text>
         </View>
-
-        {/* Alerts */}
-        {alerts.length > 0 && (
-          <Card style={styles.alertCard}>
-            <Card.Title title="Alerts" titleStyle={styles.cardTitle} />
-            <Card.Content>
-              {alerts.map((alert) => (
-                <View key={alert.id} style={styles.alertItem}>
-                  <View
-                    style={[
-                      styles.alertIcon,
-                      alert.type === "fasting" && styles.fastingAlert,
-                      alert.type === "allergy" && styles.allergyAlert,
-                      alert.type === "precaution" && styles.precautionAlert,
-                    ]}
-                  >
-                    <Text style={styles.alertIconText}>
-                      {alert.type === "fasting"
-                        ? "F"
-                        : alert.type === "allergy"
-                        ? "A"
-                        : "P"}
-                    </Text>
-                  </View>
-                  <Text style={styles.alertText}>{alert.message}</Text>
-                </View>
-              ))}
-            </Card.Content>
-          </Card>
-        )}
 
         {/* Tabs */}
         <View style={styles.tabContainer}>

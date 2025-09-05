@@ -17,7 +17,6 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
     name: '',
     dosage: '',
     reason: '',
-    side_effects: '',
     user_id: '',
     taken_at: new Date().toISOString()
   });
@@ -50,7 +49,6 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
         name: '',
         dosage: '',
         reason: '',
-        side_effects: '',
         user_id: '',
         taken_at: new Date().toISOString()
       });
@@ -89,23 +87,13 @@ export const AddAdditionalMedModal: React.FC<Props> = ({ visible, onClose, refre
             mode="outlined"
           />
 
-          <TextInput
-            label="Side effects (if any)"
-            value={newMed.side_effects}
-            onChangeText={text => setNewMed({ ...newMed, side_effects: text })}
-            style={styles.input}
-            mode="outlined"
-            multiline
-            numberOfLines={3}
-          />
-
           <View style={styles.buttonRow}>
             <Button mode="outlined" onPress={onClose} style={styles.cancelButton}>Cancel</Button>
             <Button 
               mode="contained" 
               onPress={handleSave} 
               style={styles.submitButton}
-              disabled={!newMed.name || !newMed.dosage}
+              disabled={!newMed.name || !newMed.dosage || !newMed.reason}
             >
               Save
             </Button>

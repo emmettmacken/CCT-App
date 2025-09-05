@@ -14,7 +14,7 @@ import { styles } from "../../styles/home.styles";
 interface Appointment {
   id: string;
   date: string;
-  time: string;
+  time: string | null;
   title: string;
   location: string;
   requirements: string[];
@@ -25,7 +25,8 @@ const formatDate = (dateStr: string) => {
   return `${day}-${month}-\n${year}`;
 };
 
-const formatTime = (timeStr: string) => {
+const formatTime = (timeStr: string | null) => {
+  if (!timeStr) return "";
   const [hour, minute] = timeStr.split(":");
   const h = parseInt(hour, 10);
   const ampm = h >= 12 ? "PM" : "AM";
@@ -44,7 +45,6 @@ export default function HomeScreen() {
   const [trialProgress, setTrialProgress] = useState(0);
   const [trialPhase, setTrialPhase] = useState("Cycle 1");
 
-  // TODO: Replace with actual trial start date from Supabase
   const trialStartDate = new Date("2025-08-01");
 
   const updateTrialProgress = () => {
@@ -52,11 +52,9 @@ export default function HomeScreen() {
     const diffTime = today.getTime() - trialStartDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    // Calculate total progress percentage
     const totalDays = CYCLE_LENGTH * NUM_CYCLES;
     const progress = Math.min((diffDays / totalDays) * 100, 100);
 
-    // Determine current cycle
     const currentCycle = Math.min(Math.floor(diffDays / CYCLE_LENGTH) + 1, NUM_CYCLES);
 
     setTrialProgress(progress);
@@ -72,19 +70,14 @@ export default function HomeScreen() {
       } else {
         const userId = data.session.user.id;
 
-        // Fetch user info
         const { data: userData, error: userError } = await supabase
           .from("profiles")
           .select("id, name, email")
           .eq("id", userId)
           .single();
 
-        if (userError) {
-          console.log("Error fetching user info:", userError.message);
-          setUser({ name: data.session.user.email });
-        } else {
-          setUser(userData);
-        }
+        if (userError) setUser({ name: data.session.user.email });
+        else setUser(userData);
 
         fetchAppointments(userId);
         updateTrialProgress();
@@ -100,14 +93,17 @@ export default function HomeScreen() {
         .order("date", { ascending: true })
         .order("time", { ascending: true });
 
-      if (error) {
-        console.log("Error fetching appointments:", error.message);
-        setAppointments([]);
-      } else if (data) {
+      if (error) setAppointments([]);
+      else if (data) {
         const now = new Date();
+        // Include all appointments with a date, time is optional
         const upcoming = data.filter((appt: any) => {
-          const apptDateTime = new Date(`${appt.date}T${appt.time}`);
-          return apptDateTime >= now;
+          if (!appt.date) return false;
+          if (appt.time) {
+            const apptDateTime = new Date(`${appt.date}T${appt.time}`);
+            return apptDateTime >= now;
+          }
+          return true; // show if date exists even if time is null
         });
         setAppointments(upcoming as Appointment[]);
       }
@@ -134,7 +130,9 @@ export default function HomeScreen() {
     <TouchableOpacity key={appointment.id} style={styles.appointmentCard}>
       <View style={styles.appointmentDateContainer}>
         <Text style={styles.appointmentDate}>{formatDate(appointment.date)}</Text>
-        <Text style={styles.appointmentTime}>{formatTime(appointment.time)}</Text>
+        {appointment.time && (
+          <Text style={styles.appointmentTime}>{formatTime(appointment.time)}</Text>
+        )}
       </View>
       <View style={styles.appointmentDivider} />
       <View style={styles.appointmentDetails}>
@@ -179,7 +177,9 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.appointmentsContainer}>
-          {appointments.length > 0 ? appointments.slice(0, 3).map(renderAppointmentCard) : <Text>No upcoming appointments</Text>}
+          {appointments.length > 0
+            ? appointments.slice(0, 3).map(renderAppointmentCard)
+            : <Text>No upcoming appointments</Text>}
         </View>
       </ScrollView>
     </SafeAreaView>

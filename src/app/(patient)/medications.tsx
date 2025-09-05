@@ -15,6 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { AddAdditionalMedModal } from "../../components/AddAdditionalMedModal";
 import { AdditionalMedicationsSection } from "../../components/ui/AdditionalMedicationsSection";
 import { TrialMedicationsSection } from "../../components/ui/TrialMedicationsSections";
+import SideEffectModal from "../../components/AddSideEffect";
 
 const MedicationTrackingScreen = () => {
   const [trialMedications, setTrialMedications] = useState<Medication[]>([]);
@@ -29,6 +30,8 @@ const MedicationTrackingScreen = () => {
   const [logType, setLogType] = useState<"trial" | "additional">("trial");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [showSideEffectModal, setShowSideEffectModal] = useState(false);
+  const [sideEffects, setSideEffects] = useState<any[]>([]);
 
   const isSameDate = (dateString: string, date: Date) => {
     const logDate = new Date(dateString);
@@ -117,6 +120,19 @@ const MedicationTrackingScreen = () => {
 
     setMedicationLogs(allLogs);
 
+    // Fetch side effects
+    const { data: sideEffectsData, error: sideEffectsError } = await supabase
+      .from("side_effects")
+      .select("*")
+      .eq("user_id", userId)
+      .order("start_date", { ascending: false });
+
+    if (sideEffectsError) {
+      console.log("Error fetching side effects:", sideEffectsError.message);
+    } else {
+      setSideEffects(sideEffectsData || []);
+    }
+
     setLoading(false);
   };
 
@@ -178,6 +194,36 @@ const MedicationTrackingScreen = () => {
               setSelectedTrialMed={setSelectedTrialMed}
               onLogPress={() => setTimePickerVisible(true)}
             />
+
+            <TouchableOpacity
+              style={{
+                padding: 12,
+                marginVertical: 12,
+                backgroundColor: "#3f51b5",
+                borderRadius: 8,
+                alignItems: "center",
+              }}
+              onPress={() => setShowSideEffectModal(true)}
+            >
+              <Text style={{ fontWeight: "bold", color: "#ffff" }}>
+                Report Side Effect
+              </Text>
+            </TouchableOpacity>
+
+            {/* Display saved side effects */}
+            {sideEffects.length > 0 && (
+              <View style={{ marginVertical: 12, padding: 12, backgroundColor: "#f0f4ff", borderRadius: 8 }}>
+                <Text style={{ fontWeight: "bold", marginBottom: 6 }}>Added Side Effects:</Text>
+                {sideEffects.map((se) => (
+                  <View key={se.id} style={{ marginBottom: 8 }}>
+                    <Text>Description: {se.description}</Text>
+                    <Text>Medication: {se.medication_taken || "N/A"}</Text>
+                    <Text>Start: {new Date(se.start_date).toLocaleString()}</Text>
+                    {se.end_date && <Text>End: {new Date(se.end_date).toLocaleString()}</Text>}
+                  </View>
+                ))}
+              </View>
+            )}
 
             <AdditionalMedicationsSection
               additionalMeds={additionalMeds}
@@ -328,6 +374,15 @@ const MedicationTrackingScreen = () => {
         refreshMeds={(meds: AdditionalMedication[]) =>
           setAdditionalMeds(meds)
         }
+      />
+
+      {/* Side Effect Modal */}
+      <SideEffectModal
+        visible={showSideEffectModal}
+        onDismiss={() => {
+          setShowSideEffectModal(false);
+          fetchMedications(); // refresh after save
+        }}
       />
     </SafeAreaView>
   );

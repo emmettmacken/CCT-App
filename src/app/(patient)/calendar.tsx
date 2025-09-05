@@ -6,90 +6,6 @@ import AppointmentModal from "../../components/AppointmentModal";
 import { styles } from "../../styles/appointments.styles";
 import { Appointment } from "../../types/appointments";
 
-/*const MockData: Record<string, any> = {
-  '2025-08-13': {
-    customStyles: {
-      container: {
-        backgroundColor: '#3f51b5',
-        borderRaadius: 20,
-        width: 36,
-        height: 36,
-        justifyContent: 'center',
-        alignItems: 'center'
-      },
-      text: {
-        color: '#ffffff',
-      }
-    },
-    appointmentData: {
-      dateTime: '2025-08-13T15:00:00',
-      location: 'Clinic A',
-      description: 'Follow-up appointment with Dr. Smith',
-      duration: 30,
-      type: 'Follow-up',
-      clinician_name: 'Dr. John Smith',
-      clinician_contact: 'johnsmith@hse.ie',
-      fasting_required: false,
-      medications_to_avoid: 'Avoid blood thinners like aspirin and warfarin.',
-      special_instructions: 'Bring your medical records and any current medications.'
-    }
-  },
-  '2025-08-19': {
-    customStyles: {
-      container: {
-        backgroundColor: '#3f51b5',
-        borderRaadius: 20,
-        width: 36,
-        height: 36,
-        justifyContent: 'center',
-        alignItems: 'center'
-      },
-      text: {
-        color: '#ffffff',
-      }
-    },
-    appointmentData: {
-      dateTime: '2025-08-19T11:00:00',
-      location: 'Clinic B',
-      description: 'Treatment Administration with Dr. Doe',
-      duration: 60,
-      type: 'Treatment Administration',
-      clinician_name: 'Dr. Jane Doe',
-      clinician_contact: 'janedoe@hse.ie',
-      fasting_required: true,
-      medications_to_avoid: 'Avoid anti-inflammatory medications.',
-      special_instructions: 'Take anti-nausea medication 1 hour before the appointment and arrange transport home.'
-    }
-  },
-  '2025-08-22': {
-    customStyles: {
-      container: {
-        backgroundColor: '#3f51b5',
-        borderRaadius: 20,
-        width: 36,
-        height: 36,
-        justifyContent: 'center',
-        alignItems: 'center'
-      },
-      text: {
-        color: '#ffffff',
-      }
-    },
-    appointmentData: {
-      dateTime: '2025-07-22T09:00:00',
-      location: 'Radiology Dept',
-      description: 'CT Scan with Dr. Brown',
-      duration: 40,
-      type: 'CT Scan',
-      clinician_name: 'Dr. Clancy Brown',
-      clinician_contact: 'clancybrown@hse.ie',
-      fasting_required: true,
-      medications_to_avoid: 'N/A',
-      special_instructions: 'No metal objects, wear comfortable clothing.'
-    }
-  },
-};*/
-
 const CalendarScreen = () => {
   const [appointments, setAppointments] = useState<Record<string, any>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -156,10 +72,6 @@ const CalendarScreen = () => {
       setSelectedAppointment(appointmentEntry.appointmentData);
       setModalVisible(true);
     }
-  };
-
-  const formatDate = (dateTime: string) => {
-    return dateTime.split("T")[0].split("-").reverse().join("-");
   };
 
   if (loading) {
