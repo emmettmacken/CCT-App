@@ -55,7 +55,10 @@ export default function HomeScreen() {
     const totalDays = CYCLE_LENGTH * NUM_CYCLES;
     const progress = Math.min((diffDays / totalDays) * 100, 100);
 
-    const currentCycle = Math.min(Math.floor(diffDays / CYCLE_LENGTH) + 1, NUM_CYCLES);
+    const currentCycle = Math.min(
+      Math.floor(diffDays / CYCLE_LENGTH) + 1,
+      NUM_CYCLES
+    );
 
     setTrialProgress(progress);
     setTrialPhase(`Cycle ${currentCycle}`);
@@ -93,19 +96,23 @@ export default function HomeScreen() {
         .order("date", { ascending: true })
         .order("time", { ascending: true });
 
-      if (error) setAppointments([]);
-      else if (data) {
-        const now = new Date();
-        // Include all appointments with a date, time is optional
+      if (error) {
+        setAppointments([]);
+      } else if (data) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const upcoming = data.filter((appt: any) => {
           if (!appt.date) return false;
-          if (appt.time) {
-            const apptDateTime = new Date(`${appt.date}T${appt.time}`);
-            return apptDateTime >= now;
-          }
-          return true; // show if date exists even if time is null
+
+          const apptDate = new Date(appt.date);
+          apptDate.setHours(0, 0, 0, 0);
+
+          return apptDate >= today;
         });
-        setAppointments(upcoming as Appointment[]);
+
+        // Only keep the first 3 upcoming
+        setAppointments(upcoming.slice(0, 3) as Appointment[]);
       }
       setLoading(false);
     };
@@ -127,11 +134,26 @@ export default function HomeScreen() {
   );
 
   const renderAppointmentCard = (appointment: Appointment) => (
-    <TouchableOpacity key={appointment.id} style={styles.appointmentCard}>
+    <TouchableOpacity
+      key={appointment.id}
+      style={styles.appointmentCard}
+      onPress={() =>
+        router.push({
+          pathname: "/calendar",
+          params: {
+            id: appointment.id,
+            date: appointment.date,
+            time: appointment.time ?? "",
+          },
+        })
+      }
+    >
       <View style={styles.appointmentDateContainer}>
         <Text style={styles.appointmentDate}>{formatDate(appointment.date)}</Text>
         {appointment.time && (
-          <Text style={styles.appointmentTime}>{formatTime(appointment.time)}</Text>
+          <Text style={styles.appointmentTime}>
+            {formatTime(appointment.time)}
+          </Text>
         )}
       </View>
       <View style={styles.appointmentDivider} />
@@ -148,7 +170,9 @@ export default function HomeScreen() {
   );
 
   if (loading)
-    return <ActivityIndicator size="large" style={{ flex: 1, justifyContent: "center" }} />;
+    return (
+      <ActivityIndicator size="large" style={{ flex: 1, justifyContent: "center" }} />
+    );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -158,9 +182,14 @@ export default function HomeScreen() {
             <Text style={styles.welcomeText}>Welcome back,</Text>
             <Text style={styles.nameText}>{user?.name || "User"}</Text>
           </View>
-          <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/profile")}>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => router.push("/profile")}
+          >
             <View style={styles.profileImagePlaceholder}>
-              <Text style={styles.profileInitial}>{user?.name ? user?.name[0] : "U"}</Text>
+              <Text style={styles.profileInitial}>
+                {user?.name ? user?.name[0] : "U"}
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -177,9 +206,11 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.appointmentsContainer}>
-          {appointments.length > 0
-            ? appointments.slice(0, 3).map(renderAppointmentCard)
-            : <Text>No upcoming appointments</Text>}
+          {appointments.length > 0 ? (
+            appointments.map(renderAppointmentCard)
+          ) : (
+            <Text>No upcoming appointments</Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

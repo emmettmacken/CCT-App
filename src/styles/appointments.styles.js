@@ -100,5 +100,11 @@ export const styles = StyleSheet.create({
     color: '#999',
     marginBottom: 0,
     textAlign: 'center',
-  }
+  },
+  time: {
+    color: '#3f51b5',
+    flexShrink: 1,
+    marginLeft: 10,
+    textAlign: 'right',
+  },
 });

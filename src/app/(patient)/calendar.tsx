@@ -5,6 +5,7 @@ import { supabase } from "../../../backend/supabaseClient";
 import AppointmentModal from "../../components/AppointmentModal";
 import { styles } from "../../styles/appointments.styles";
 import { Appointment } from "../../types/appointments";
+import { useLocalSearchParams } from "expo-router";
 
 const CalendarScreen = () => {
   const [appointments, setAppointments] = useState<Record<string, any>>({});
@@ -13,6 +14,8 @@ const CalendarScreen = () => {
     useState<Appointment | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const { id, date } = useLocalSearchParams<{ id?: string; date?: string }>();
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -55,6 +58,12 @@ const CalendarScreen = () => {
           );
 
           setAppointments(formattedAppointments);
+
+          if (date && formattedAppointments[date]) {
+            setSelectedDate(date);
+            setSelectedAppointment(formattedAppointments[date].appointmentData);
+            setModalVisible(true);
+          }
         }
       } catch (err) {
         console.error("Unexpected error:", err);
@@ -63,7 +72,7 @@ const CalendarScreen = () => {
       }
     };
     fetchAppointments();
-  }, []);
+  }, [date, id]);
 
   const handleDayPress = (day: { dateString: string }) => {
     setSelectedDate(day.dateString);
@@ -91,12 +100,8 @@ const CalendarScreen = () => {
         Trials Office at 087 382 4221 at your earliest convenience
       </Text>
       <Calendar
-        current={
-          new Date().toISOString().split("T")[0]
-        }
-        minDate={
-          new Date().toISOString().split("T")[0]
-        }
+        current={date || new Date().toISOString().split("T")[0]}
+        minDate={new Date().toISOString().split("T")[0]}
         maxDate={"2050-12-31"}
         markingType={"custom"}
         markedDates={appointments}

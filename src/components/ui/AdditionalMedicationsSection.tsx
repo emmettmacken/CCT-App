@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text } from 'react-native';
-import { Card, Button, List } from 'react-native-paper';
+import { Card, Button, List, IconButton } from 'react-native-paper';
 import { AdditionalMedication, MedicationLog } from '../../types/medications';
 import { format, parseISO } from 'date-fns';
 import { styles } from '../../styles/medications.styles';
@@ -8,11 +8,18 @@ import { styles } from '../../styles/medications.styles';
 interface Props {
   additionalMeds: AdditionalMedication[];
   medicationLogs: MedicationLog[];
-  onAddPress: () => void;
+  onAddPress: (medToEdit?: AdditionalMedication) => void; // reuse add form for editing
 }
 
 export const AdditionalMedicationsSection: React.FC<Props> = ({ additionalMeds, onAddPress }) => {
+  const [editingMed, setEditingMed] = useState<AdditionalMedication | null>(null);
+
   const formatDateTime = (dateString: string) => format(parseISO(dateString), 'MMM d, yyyy - h:mm a');
+
+  const handleEditPress = (med: AdditionalMedication) => {
+    setEditingMed(med);
+    onAddPress(med); // open the form, passing the med to prefill
+  };
 
   return (
     <Card style={styles.sectionCard}>
@@ -23,7 +30,7 @@ export const AdditionalMedicationsSection: React.FC<Props> = ({ additionalMeds, 
         right={() => (
           <Button 
             mode="contained" 
-            onPress={onAddPress}
+            onPress={() => onAddPress()}
             style={styles.addButton}
           >
             Add
@@ -46,6 +53,11 @@ export const AdditionalMedicationsSection: React.FC<Props> = ({ additionalMeds, 
                         Side effects: {med.side_effects || 'None reported'}
                       </Text>
                     )}
+                    <IconButton
+                      icon="pencil"
+                      size={20}
+                      onPress={() => onAddPress(med)}
+                    />
                   </View>
                 )}
               />

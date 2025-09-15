@@ -80,6 +80,14 @@ const AppointmentModal: React.FC<Props> = ({ visible, onClose, appointment }) =>
           <ScrollView>
             <Text style={styles.modalTitle}>Appointment Details</Text>
 
+            {/* Title */}
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Title:</Text>
+              <Text style={styles.detailValue}>
+                {appointment.title}
+              </Text>
+            </View>
+
             {/* Date */}
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Date:</Text>
@@ -110,7 +118,7 @@ const AppointmentModal: React.FC<Props> = ({ visible, onClose, appointment }) =>
                 />
               ) : (
                 <TouchableOpacity onPress={() => setEditingTime(true)}>
-                  <Text style={styles.detailValue}>
+                  <Text style={styles.time}>
                     {patientTime ? formatTime(patientTime) : "Enter time given by clinic"}
                   </Text>
                 </TouchableOpacity>

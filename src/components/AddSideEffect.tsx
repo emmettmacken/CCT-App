@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; 
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput, Button, IconButton } from 'react-native-paper';
@@ -72,12 +73,10 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("No authenticated user found");
-      }
+      if (!user) throw new Error("No authenticated user found");
 
       const payload: SideEffectRecord = {
-        user_id: user.id, 
+        user_id: user.id,
         description: description.trim(),
         start_date: startDate.toISOString(),
         end_date: endDate ? endDate.toISOString() : null,
@@ -90,14 +89,9 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
         .select()
         .single();
 
-      if (insertError) {
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      if (onSaved) {
-        onSaved(data as SideEffectRecord);
-      }
-
+      onSaved?.(data as SideEffectRecord);
       resetForm();
       onDismiss?.();
     } catch (e: any) {
@@ -108,10 +102,7 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
     }
   };
 
-  const renderDateTime = (d: Date | null) => {
-    if (!d) return 'Not set';
-    return format(d, 'PPP p');
-  };
+  const renderDateTime = (d: Date | null) => (d ? format(d, 'PPP p') : 'Not set');
 
   return (
     <Modal
@@ -121,104 +112,112 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
       onRequestClose={() => {
         if (!saving) {
           resetForm();
-          onDismiss?.(); 
+          onDismiss?.();
         }
       }}
     >
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.overlay}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.flex}
         >
-          <View style={styles.container}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Log a Side Effect</Text>
-              <IconButton
-                icon="close"
-                size={24}
-                onPress={() => {
-                  if (!saving) {
-                    resetForm();
-                    onDismiss?.(); 
-                  }
-                }}
-              />
-            </View>
-
-            <View style={styles.content}>
-              <TextInput
-                label="Description"
-                value={description}
-                onChangeText={setDescription}
-                mode="outlined"
-                multiline
-                numberOfLines={4}
-                style={styles.input}
-                editable={!saving}
-              />
-
-              <View style={styles.row}>
-                <View style={styles.dateColumn}>
-                  <Text style={styles.label}>Start (date & time)</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowStartPicker(true)}
-                    style={styles.dateButton}
-                    disabled={saving}
-                  >
-                    <Text style={styles.dateText}>{renderDateTime(startDate)}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.dateColumn}>
-                  <Text style={styles.label}>End (date & time)</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowEndPicker(true)}
-                    style={styles.dateButton}
-                    disabled={saving}
-                  >
-                    <Text style={styles.dateText}>{renderDateTime(endDate)}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <TextInput
-                label="Medications taken (if any)"
-                value={medicationTaken}
-                onChangeText={setMedicationTaken}
-                mode="outlined"
-                style={styles.input}
-                editable={!saving}
-              />
-
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-              <View style={styles.buttonRow}>
-                <Button
-                  mode="outlined"
+          <View style={styles.modalContainer}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Header */}
+              <View style={styles.header}>
+                <Text style={styles.title}>Log a Side Effect</Text>
+                <IconButton
+                  icon="close"
+                  size={24}
                   onPress={() => {
-                    resetForm();
-                    onDismiss?.(); 
+                    if (!saving) {
+                      resetForm();
+                      onDismiss?.();
+                    }
                   }}
-                  disabled={saving}
-                  style={styles.button}
-                >
-                  Cancel
-                </Button>
-
-                <Button
-                  mode="contained"
-                  onPress={handleSave}
-                  loading={saving}
-                  disabled={saving}
-                  style={[styles.button, styles.saveButton]}
-                >
-                  Save
-                </Button>
+                />
               </View>
-            </View>
+
+              {/* Content */}
+              <View style={styles.content}>
+                <TextInput
+                  label="Description"
+                  value={description}
+                  onChangeText={setDescription}
+                  mode="outlined"
+                  multiline
+                  numberOfLines={4}
+                  style={styles.input}
+                  editable={!saving}
+                />
+
+                <View style={styles.row}>
+                  <View style={styles.dateColumn}>
+                    <Text style={styles.label}>Start (date & time)</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowStartPicker(true)}
+                      style={styles.dateButton}
+                      disabled={saving}
+                    >
+                      <Text style={styles.dateText}>{renderDateTime(startDate)}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.dateColumn}>
+                    <Text style={styles.label}>End (date & time)</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowEndPicker(true)}
+                      style={styles.dateButton}
+                      disabled={saving}
+                    >
+                      <Text style={styles.dateText}>{renderDateTime(endDate)}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <TextInput
+                  label="Medications taken (if any)"
+                  value={medicationTaken}
+                  onChangeText={setMedicationTaken}
+                  mode="outlined"
+                  style={styles.input}
+                  editable={!saving}
+                />
+
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                <View style={styles.buttonRow}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => {
+                      resetForm();
+                      onDismiss?.();
+                    }}
+                    disabled={saving}
+                    style={styles.button}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    mode="contained"
+                    onPress={handleSave}
+                    loading={saving}
+                    disabled={saving}
+                    style={[styles.button, styles.saveButton]}
+                  >
+                    Save
+                  </Button>
+                </View>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
 
+        {/* Date Pickers */}
         <DateTimePickerModal
           isVisible={showStartPicker}
           mode="datetime"
@@ -226,9 +225,7 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
           onConfirm={(date) => {
             setShowStartPicker(false);
             setStartDate(date);
-            if (endDate && date > endDate) {
-              setEndDate(null);
-            }
+            if (endDate && date > endDate) setEndDate(null);
           }}
           onCancel={() => setShowStartPicker(false)}
           is24Hour={false}
@@ -237,7 +234,10 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
         <DateTimePickerModal
           isVisible={showEndPicker}
           mode="datetime"
-          date={endDate || (startDate ? new Date(startDate.getTime() + 60 * 60 * 1000) : new Date())}
+          date={
+            endDate ||
+            (startDate ? new Date(startDate.getTime() + 60 * 60 * 1000) : new Date())
+          }
           onConfirm={(date) => {
             setShowEndPicker(false);
             setEndDate(date);
@@ -245,13 +245,13 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
           onCancel={() => setShowEndPicker(false)}
           is24Hour={false}
         />
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
@@ -259,19 +259,23 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  container: {
+  modalContainer: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     paddingHorizontal: 16,
+    paddingTop: 50,
     paddingBottom: 24,
-    maxHeight: '90%',
+    maxHeight: '85%',
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    marginBottom: 12,
   },
   title: {
     fontSize: 18,

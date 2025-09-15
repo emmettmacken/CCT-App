@@ -25,11 +25,15 @@ const MedicationTrackingScreen = () => {
 
   const [selectedTrialMed, setSelectedTrialMed] = useState<Medication | null>(null);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
+
   const [showAddMedModal, setShowAddMedModal] = useState(false);
+  const [medToEdit, setMedToEdit] = useState<AdditionalMedication | null>(null); // 🔹 track editing
+
   const [logBookExpanded, setLogBookExpanded] = useState(false);
   const [logType, setLogType] = useState<"trial" | "additional">("trial");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+
   const [showSideEffectModal, setShowSideEffectModal] = useState(false);
   const [sideEffects, setSideEffects] = useState<any[]>([]);
 
@@ -125,7 +129,7 @@ const MedicationTrackingScreen = () => {
       .from("side_effects")
       .select("*")
       .eq("user_id", userId)
-      .order("start_date", { ascending: false });
+      .order("start_date", { ascending: false })
 
     if (sideEffectsError) {
       console.log("Error fetching side effects:", sideEffectsError.message);
@@ -180,6 +184,12 @@ const MedicationTrackingScreen = () => {
     (log) => log.type === logType && selectedDate && isSameDate(log.taken_at, selectedDate)
   );
 
+  // Unified Add/Edit handler
+  const handleAddOrEditMedication = (med?: AdditionalMedication) => {
+    setMedToEdit(med || null);
+    setShowAddMedModal(true);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
@@ -225,10 +235,11 @@ const MedicationTrackingScreen = () => {
               </View>
             )}
 
+            {/* Pass edit-aware handler down */}
             <AdditionalMedicationsSection
               additionalMeds={additionalMeds}
               medicationLogs={todayAdditionalLogs}
-              onAddPress={() => setShowAddMedModal(true)}
+              onAddPress={handleAddOrEditMedication}
             />
 
             {/* Collapsible Log Book Header */}
@@ -248,9 +259,7 @@ const MedicationTrackingScreen = () => {
                 Medication Log Book
               </Text>
               <MaterialIcons
-                name={
-                  logBookExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"
-                }
+                name={logBookExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
                 size={28}
                 color="black"
               />
@@ -270,9 +279,7 @@ const MedicationTrackingScreen = () => {
                   onPress={() => setDatePickerVisible(true)}
                 >
                   <Text style={{ color: "white", fontWeight: "bold" }}>
-                    {selectedDate
-                      ? selectedDate.toDateString()
-                      : "Select a Date"}
+                    {selectedDate ? selectedDate.toDateString() : "Select a Date"}
                   </Text>
                 </TouchableOpacity>
 
@@ -302,8 +309,7 @@ const MedicationTrackingScreen = () => {
                     style={{
                       paddingVertical: 8,
                       paddingHorizontal: 16,
-                      backgroundColor:
-                        logType === "additional" ? "#4CAF50" : "#ccc",
+                      backgroundColor: logType === "additional" ? "#4CAF50" : "#ccc",
                       borderRadius: 8,
                       marginHorizontal: 5,
                     }}
@@ -329,9 +335,7 @@ const MedicationTrackingScreen = () => {
               }}
             >
               <Text style={{ fontWeight: "bold" }}>
-                {logType === "trial"
-                  ? "Trial Medication"
-                  : "Additional Medication"}
+                {logType === "trial" ? "Trial Medication" : "Additional Medication"}
               </Text>
               <Text>Name: {item.name}</Text>
               <Text>Dosage: {item.dosage}</Text>
@@ -367,13 +371,15 @@ const MedicationTrackingScreen = () => {
         }}
       />
 
-      {/* Add Additional Medication Modal */}
+      {/* Add/Edit Additional Medication Modal */}
       <AddAdditionalMedModal
         visible={showAddMedModal}
-        onClose={() => setShowAddMedModal(false)}
-        refreshMeds={(meds: AdditionalMedication[]) =>
-          setAdditionalMeds(meds)
-        }
+        onClose={() => {
+          setShowAddMedModal(false);
+          setMedToEdit(null);
+        }}
+        refreshMeds={(meds: AdditionalMedication[]) => setAdditionalMeds(meds)}
+        medToEdit={medToEdit} // pass down for editing
       />
 
       {/* Side Effect Modal */}
