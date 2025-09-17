@@ -1,6 +1,13 @@
 import { format, parseISO } from "date-fns";
 import React, { useEffect, useState } from "react";
-import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  Alert,
+} from "react-native";
 import { Button, Card, Chip, List, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
@@ -29,9 +36,18 @@ const getAppointmentDateTime = (appt: any) => {
   }
   return parseISO(appt.date);
 };
+
+const addDays = (date: Date, days: number) => {
+  const copy = new Date(date.getTime());
+  copy.setDate(copy.getDate() + days);
+  return copy;
+};
+
 const PatientListScreen = ({ navigation }: { navigation: any }) => {
   const [patients, setPatients] = useState<ListPatient[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<ListPatient[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<ListPatient[]>(
+    []
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [trialFilter, setTrialFilter] = useState<TrialFilter>("All");
   const [loading, setLoading] = useState(true);
@@ -39,6 +55,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
     null
   );
+  const [trialFilters, setTrialFilters] = useState<string[]>(["All", "Unassigned"]);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -48,10 +65,9 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
         } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Pull directly from public.profiles using existing columns
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, name, role, trial_name, trial_phase, trial_progress")
+          .select("id, name, role, trial_name, trial_phase, trial_progress, weight, height, age, trial_id")
           .eq("role", "patient");
 
         if (error) throw error;
@@ -75,7 +91,6 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
     fetchPatients();
 
-    // Listen for changes to profiles (e.g., trial assignment updates)
     const subscription = supabase
       .channel("profiles-patient-changes")
       .on(
@@ -91,20 +106,31 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
   }, []);
 
   useEffect(() => {
+    const fetchTrials = async () => {
+      const { data, error } = await supabase
+        .from("trials")
+        .select("name");
+      if (error) {
+        console.error("Error fetching trials:", error);
+      } else {
+        const trialNames = (data ?? []).map((t) => t.name);
+        setTrialFilters(["All", ...trialNames, "Unassigned"]);
+      }
+    };
+    fetchTrials();
+  }, []);
+
+    useEffect(() => {
     let result = [...patients];
 
-    // Search by name
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter((p) => (p.name ?? "").toLowerCase().includes(q));
     }
 
-    // Filter by trial assignment
     if (trialFilter !== "All") {
       if (trialFilter === "Unassigned") {
-        result = result.filter(
-          (p) => !p.trial_name || p.trial_name.trim() === ""
-        );
+        result = result.filter((p) => !p.trial_name || p.trial_name.trim() === "");
       } else {
         result = result.filter(
           (p) =>
@@ -137,11 +163,11 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
         />
 
         <View style={styles.chipContainer}>
-          {TRIAL_FILTERS.map((val) => (
+          {trialFilters.map((val) => (
             <Chip
               key={val}
               selected={trialFilter === val}
-              onPress={() => setTrialFilter(val)}
+              onPress={() => setTrialFilter(val as TrialFilter)}
               style={styles.chip}
             >
               {val}
@@ -169,7 +195,6 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
                     </Text>
                   </View>
                 )}
-                // Removed last_appointment + alerts UI since those fields aren't in profiles schema
                 style={styles.listItem}
                 onPress={() => {
                   setSelectedPatientId(patient.id);
@@ -182,7 +207,6 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
           <Text style={styles.noPatientsText}>No patients found</Text>
         )}
       </ScrollView>
-      {/* Patient Profile Modal */}
       <Modal
         visible={showProfileModal}
         onRequestClose={() => setShowProfileModal(false)}
@@ -217,117 +241,285 @@ const PatientProfileScreen = ({
   const [notes, setNotes] = useState<ClinicianNote[]>([]);
   const [activeTab, setActiveTab] = useState("appointments");
   const [loading, setLoading] = useState(true);
-  const [editMedId, setEditMedId] = useState<string | null>(null);
-  const [editMedData, setEditMedData] = useState<Partial<Medication>>({});
-  const [showMedModal, setShowMedModal] = useState(false);
+
+  // trial assignment UI
+  const [trials, setTrials] = useState<any[]>([]);
+  const [selectedTrial, setSelectedTrial] = useState<string | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  // edit medication modal
+  const [showEditMedModal, setShowEditMedModal] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
+  const [editMedName, setEditMedName] = useState("");
+  const [editMedDosage, setEditMedDosage] = useState("");
+  const [editMedFrequency, setEditMedFrequency] = useState("");
+  const [editMedNotes, setEditMedNotes] = useState("");
+
+  // use a reusable fetch so we can call after assignment
+  const fetchPatientData = async () => {
+    setLoading(true);
+    try {
+      const { data: patientData, error: patientError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", patientId)
+        .single();
+
+      if (patientError) throw patientError;
+
+      const { data: appointmentsData } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("user_id", patientId)
+        .gte("date", new Date().toISOString().split("T")[0])
+        .order("date", { ascending: true });
+
+      const { data: medicationsData } = await supabase
+        .from("trial_medications")
+        .select("*")
+        .eq("user_id", patientId)
+        .order("name", { ascending: true });
+
+      setPatient(patientData);
+      setAppointments(appointmentsData || []);
+      setMedications(medicationsData || []);
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPatientData = async () => {
-      try {
-        // Fetch patient details
-        const { data: patientData, error: patientError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", patientId)
-          .single();
-
-        if (patientError) throw patientError;
-
-        // Fetch appointments
-        const { data: appointmentsData, error: appointmentsError } =
-          await supabase
-            .from("appointments")
-            .select("*")
-            .eq("user_id", patientId)
-            .gte('date', new Date().toISOString().split('T')[0]) // only shows today or future appointments
-            .order("date", { ascending: true });
-
-        if (appointmentsError) throw appointmentsError;
-
-        // Fetch medications
-        const { data: medicationsData, error: medicationsError } =
-          await supabase
-            .from("trial_medications")
-            .select("*")
-            .eq("user_id", patientId)
-            .order("name", { ascending: true });
-
-        if (medicationsError) throw medicationsError;
-
-        /* Fetch clinician notes
-        const { data: notesData, error: notesError } = await supabase
-          .from("clinician_notes")
-          .select("*")
-          .eq("patient_id", patientId)
-          .order("created_at", { ascending: false });
-
-        if (notesError) throw notesError;
-
-        // Fetch alerts
-        const { data: alertsData, error: alertsError } = await supabase
-          .from("patient_alerts")
-          .select("*")
-          .eq("patient_id", patientId)
-          .eq("active", true);
-
-        if (alertsError) throw alertsError; */
-
-        setPatient(patientData);
-        setAppointments(appointmentsData || []);
-        setMedications(medicationsData || []);
-        /*setNotes(notesData || []);
-        setAlerts(alertsData || []);*/
-      } catch (error) {
-        console.error("Error fetching patient data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPatientData();
-
-    const subscription = supabase
-      .channel("patient-profile")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "appointments" },
-        () => fetchPatientData()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "medications" },
-        () => fetchPatientData()
-      )
-      /*.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "clinician_notes" },
-        () => fetchPatientData()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "patient_alerts" },
-        () => fetchPatientData()
-      )*/
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
-  const handleUpdateMedication = async () => {
-    if (!editMedId) return;
+  useEffect(() => {
+    const fetchTrials = async () => {
+      const { data, error } = await supabase
+        .from("trials")
+        .select("id, name, trial_phase"); // keep DB column names
+      if (error) {
+        console.error("Error fetching trials:", error);
+      } else {
+        setTrials(data || []);
+      }
+    };
+    fetchTrials();
+  }, []);
 
-    try {
-      await supabase
-        .from("trial_medications")
-        .update(editMedData)
-        .eq("id", editMedId);
+  const handleAssignTrial = async () => {
+    if (!selectedTrial || !patient) return;
 
-      setShowMedModal(false);
-      setEditMedId(null);
-    } catch (error) {
-      console.error("Error updating medication:", error);
+    Alert.alert(
+      "Confirm Assignment",
+      `Are you sure you want to assign ${patient.name} to this trial?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              if (!user) {
+                Alert.alert("Not logged in", "You must be logged in to assign.");
+                return;
+              }
+
+              // 0) Prevent duplicate assignment (optional but helpful)
+              const { data: existing } = await supabase
+                .from("patient_trials")
+                .select("id")
+                .eq("patient_id", patient.id)
+                .eq("trial_id", selectedTrial)
+                .limit(1);
+
+              if (existing && existing.length > 0) {
+                Alert.alert("Already assigned", "This patient is already assigned to that trial.");
+                setShowAssignModal(false);
+                setSelectedTrial(null);
+                return;
+              }
+
+              // 1) Insert into patient_trials and return the row (we need id and start_date)
+              const {
+                data: patientTrialRow,
+                error: patientTrialError,
+              } = await supabase
+                .from("patient_trials")
+                .insert([
+                  {
+                    patient_id: patient.id,
+                    trial_id: selectedTrial,
+                    assigned_by: user.id,
+                    status: "assigned",
+                  },
+                ])
+                .select("*")
+                .single();
+
+              if (patientTrialError) {
+                console.error("Error inserting patient_trial:", patientTrialError);
+                Alert.alert("Error", "Could not assign trial (patient_trials insert).");
+                return;
+              }
+
+              const patientTrialId = patientTrialRow.id;
+              const startDateStr = patientTrialRow.start_date || new Date().toISOString().split("T")[0];
+              const startDate = new Date(startDateStr);
+
+              // 2) Fetch trial assessments and create appointments
+              const { data: assessments, error: assessmentsError } = await supabase
+                .from("trial_assessments")
+                .select("*")
+                .eq("trial_id", selectedTrial);
+
+              if (assessmentsError) {
+                console.error("Error fetching trial_assessments:", assessmentsError);
+                Alert.alert("Warning", "Assigned trial but could not fetch assessments.");
+              } else if (assessments && assessments.length > 0) {
+                const appointmentsToInsert: any[] = [];
+
+                assessments.forEach((a: any) => {
+                  const scheduled_days = a.scheduled_days || [];
+                  const daysArray = Array.isArray(scheduled_days)
+                    ? scheduled_days
+                    : [scheduled_days];
+
+                  daysArray.forEach((rawDay: any) => {
+                    const dayNum = Number(rawDay);
+                    if (Number.isNaN(dayNum)) return;
+                    const apptDate = addDays(startDate, dayNum - 1);
+                    appointmentsToInsert.push({
+                      user_id: patient.id,
+                      date: apptDate.toISOString().split("T")[0],
+                      time: null,
+                      title: a.name,
+                      category: a.category || "Clinic",
+                      requirements: a.requirements ? [a.requirements] : null,
+                      patient_trial_id: patientTrialId,
+                    });
+                  });
+                });
+
+                if (appointmentsToInsert.length > 0) {
+                  const { error: insertAppointmentsError } = await supabase
+                    .from("appointments")
+                    .insert(appointmentsToInsert);
+
+                  if (insertAppointmentsError) {
+                    console.error("Error inserting appointments:", insertAppointmentsError);
+                    Alert.alert("Warning", "Assigned trial but could not create appointments.");
+                  } else {
+                    console.log("Inserted appointments:", appointmentsToInsert.length);
+                  }
+                } else {
+                  console.log("No appointment rows to insert (no scheduled_days found).");
+                }
+              }
+
+              // 3) Fetch trial medication templates and insert into trial_medications
+              const { data: medsTemplate, error: medsTemplateError } = await supabase
+                .from("trial_medications_template")
+                .select("*")
+                .eq("trial_id", selectedTrial);
+
+              if (medsTemplateError) {
+                console.error("Error fetching meds template:", medsTemplateError);
+                Alert.alert("Warning", "Assigned trial but could not fetch medication templates.");
+              } else if (medsTemplate && medsTemplate.length > 0) {
+                const medsToInsert = medsTemplate.map((m: any) => ({
+                  user_id: patient.id,
+                  name: m.drug_name,
+                  dosage: m.dosage,
+                  frequency: m.frequency,
+                  created_at: new Date().toISOString(),
+                  notes: JSON.stringify({
+                    applicable_cycles: m.applicable_cycles ?? null,
+                    special_conditions: m.special_conditions ?? null,
+                    administration_pattern: m.administration_pattern ?? null,
+                  }),
+                  patient_trial_id: patientTrialId,
+                }));
+
+                if (medsToInsert.length > 0) {
+                  const { error: insertMedsError } = await supabase
+                    .from("trial_medications")
+                    .insert(medsToInsert);
+
+                  if (insertMedsError) {
+                    console.error("Error inserting trial_medications:", insertMedsError);
+                    Alert.alert("Warning", "Assigned trial but could not create medications.");
+                  } else {
+                    console.log("Inserted medications:", medsToInsert.length);
+                  }
+                }
+              }
+
+              // 4) Also update profile for easy filtering
+              const trialMeta = trials.find((t) => t.id === selectedTrial);
+              const { error: updateProfileError } = await supabase
+                .from("profiles")
+                .update({
+                  trial_name: trialMeta?.name || null,
+                  trial_phase: trialMeta?.trial_phase || "Induction",
+                })
+                .eq("id", patient.id);
+
+              if (updateProfileError) {
+                console.error("Error updating profile fields:", updateProfileError);
+              }
+
+              // 5) close modal, clear selection and refresh patient data
+              setShowAssignModal(false);
+              setSelectedTrial(null);
+
+              await fetchPatientData();
+
+              Alert.alert("Success", "Trial assigned and items copied.");
+            } catch (error) {
+              console.error("Error assigning trial:", error);
+              Alert.alert("Error", "An unexpected error occurred while assigning the trial.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditMedication = (med: Medication) => {
+    setEditingMedication(med);
+    setEditMedName(med.name);
+    setEditMedDosage(med.dosage ?? "");
+    setEditMedFrequency(med.frequency ?? "");
+    setEditMedNotes(med.notes ?? "");
+    setShowEditMedModal(true);
+  };
+
+  const submitEditMedication = async () => {
+    if (!editingMedication) return;
+
+    const { error } = await supabase
+      .from("trial_medications")
+      .update({
+        name: editMedName,
+        dosage: editMedDosage,
+        frequency: editMedFrequency,
+        notes: editMedNotes,
+      })
+      .eq("id", editingMedication.id);
+
+    if (error) {
+      Alert.alert("Error", "Failed to update medication.");
+      console.error(error);
+    } else {
+      Alert.alert("Success", "Medication updated.");
+      setShowEditMedModal(false);
+      setEditingMedication(null);
+      await fetchPatientData();
     }
   };
 
@@ -342,7 +534,6 @@ const PatientProfileScreen = ({
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.profileContainer}>
-        {/* Patient Header */}
         <View style={styles.profileHeader}>
           <Button mode="text" onPress={onClose}>
             Close
@@ -355,11 +546,20 @@ const PatientProfileScreen = ({
           </View>
           <Text style={styles.profileName}>{patient.name}</Text>
           <Text style={styles.profileDetails}>
-            {patient.age} years | {patient.trial_name}
+            {patient.trial_name ?? "Unassigned"} | {patient.age} years | {patient.weight} kg | {patient.height} cm | Trial ID: {patient.trial_id ?? "-"}
           </Text>
         </View>
 
-        {/* Tabs */}
+        {!patient.trial_name && (
+          <Button
+            mode="contained"
+            onPress={() => setShowAssignModal(true)}
+            style={{ margin: 10 }}
+          >
+            Assign Trial
+          </Button>
+        )}
+
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[
@@ -390,7 +590,6 @@ const PatientProfileScreen = ({
           </TouchableOpacity>
         </View>
 
-        {/* Appointments Tab */}
         {activeTab === "appointments" && (
           <Card style={styles.contentCard}>
             <Card.Content>
@@ -403,23 +602,7 @@ const PatientProfileScreen = ({
                         getAppointmentDateTime(appt),
                         appt.time ? "PPPPp" : "PPPP"
                       )}
-                      description={`${appt.title} - ${appt.location}`}
-                      left={() => (
-                        <View
-                          style={[
-                            styles.statusIndicator,
-                            appt.status === "completed" &&
-                              styles.completedStatus,
-                            appt.status === "upcoming" && styles.upcomingStatus,
-                          ]}
-                        />
-                      )}
-                      right={() =>
-                        appt.notes && (
-                          <List.Icon icon="note-text" color="#666" />
-                        )
-                      }
-                      style={styles.listItem}
+                      description={`${appt.title} - ${appt.category} - ${appt.location}`}
                     />
                   ))}
                 </List.Section>
@@ -430,7 +613,6 @@ const PatientProfileScreen = ({
           </Card>
         )}
 
-        {/* Medications Tab */}
         {activeTab === "medications" && (
           <Card style={styles.contentCard}>
             <Card.Content>
@@ -440,25 +622,13 @@ const PatientProfileScreen = ({
                     <List.Item
                       key={med.id}
                       title={med.name}
-                      description={`${med.dosage} - ${med.frequency} - ${med.notes}`}
+                      description={`${med.dosage ?? ""} - ${med.frequency ?? ""}`}
                       left={() => <List.Icon icon="pill" />}
                       right={() => (
-                        <Button
-                          mode="text"
-                          onPress={() => {
-                            setEditMedId(med.id);
-                            setEditMedData({
-                              dosage: med.dosage,
-                              frequency: med.frequency,
-                              notes: med.notes,
-                            });
-                            setShowMedModal(true);
-                          }}
-                        >
-                          Edit
-                        </Button>
+                        <TouchableOpacity onPress={() => handleEditMedication(med)}>
+                          <List.Icon icon="pencil" />
+                        </TouchableOpacity>
                       )}
-                      style={styles.listItem}
                     />
                   ))}
                 </List.Section>
@@ -468,38 +638,61 @@ const PatientProfileScreen = ({
             </Card.Content>
           </Card>
         )}
-
-        {/* Notes Tab */}
-        {activeTab === "notes" && (
-          <Card style={styles.contentCard}>
-            <Card.Content>
-              {notes.length > 0 ? (
-                <List.Section>
-                  {notes.map((note) => (
-                    <List.Item
-                      key={note.id}
-                      title={note.author}
-                      description={`${format(
-                        parseISO(note.created_at),
-                        "PP"
-                      )}\n${note.content}`}
-                      left={() => <List.Icon icon="note" />}
-                      style={styles.listItem}
-                    />
-                  ))}
-                </List.Section>
-              ) : (
-                <Text style={styles.noDataText}>No notes found</Text>
-              )}
-            </Card.Content>
-          </Card>
-        )}
       </ScrollView>
 
-      {/* Medication Edit Modal */}
+      {/* Assign Trial Modal */}
       <Modal
-        visible={showMedModal}
-        onRequestClose={() => setShowMedModal(false)}
+        visible={showAssignModal}
+        onRequestClose={() => setShowAssignModal(false)}
+        animationType="slide"
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>Assign Trial</Text>
+
+            {trials.map((trial) => (
+              <TouchableOpacity
+                key={trial.id}
+                style={[
+                  styles.trialOption,
+                  selectedTrial === trial.id && styles.activeTrialOption,
+                ]}
+                onPress={() => setSelectedTrial(trial.id)}
+              >
+                <Text>
+                  {trial.name} (Phase {trial.trial_phase ?? trial.phase ?? "-"})
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.buttonRow}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowAssignModal(false)}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleAssignTrial}
+                disabled={!selectedTrial}
+                style={styles.submitButton}
+              >
+                Confirm
+              </Button>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Edit Medication Modal */}
+      <Modal
+        visible={showEditMedModal}
+        onRequestClose={() => setShowEditMedModal(false)}
         animationType="slide"
       >
         <SafeAreaView
@@ -510,52 +703,49 @@ const PatientProfileScreen = ({
             <Text style={styles.modalTitle}>Edit Medication</Text>
 
             <TextInput
-              label="Dosage"
-              value={editMedData.dosage || ""}
-              onChangeText={(text) =>
-                setEditMedData({ ...editMedData, dosage: text })
-              }
-              style={styles.input}
+              label="Name"
+              value={editMedName}
+              onChangeText={setEditMedName}
               mode="outlined"
+              style={{ marginBottom: 10 }}
             />
-
+            <TextInput
+              label="Dosage"
+              value={editMedDosage}
+              onChangeText={setEditMedDosage}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
             <TextInput
               label="Frequency"
-              value={editMedData.frequency || ""}
-              onChangeText={(text) =>
-                setEditMedData({ ...editMedData, frequency: text })
-              }
-              style={styles.input}
+              value={editMedFrequency}
+              onChangeText={setEditMedFrequency}
               mode="outlined"
+              style={{ marginBottom: 10 }}
             />
-
             <TextInput
               label="Notes"
-              value={editMedData.notes || ""}
-              onChangeText={(text) =>
-                setEditMedData({ ...editMedData, notes: text })
-              }
-              style={styles.input}
+              value={editMedNotes}
+              onChangeText={setEditMedNotes}
               mode="outlined"
               multiline
-              numberOfLines={3}
+              style={{ marginBottom: 10 }}
             />
 
             <View style={styles.buttonRow}>
               <Button
                 mode="outlined"
-                onPress={() => setShowMedModal(false)}
+                onPress={() => setShowEditMedModal(false)}
                 style={styles.cancelButton}
               >
                 Cancel
               </Button>
               <Button
                 mode="contained"
-                onPress={handleUpdateMedication}
+                onPress={submitEditMedication}
                 style={styles.submitButton}
-                disabled={!editMedData.dosage || !editMedData.frequency}
               >
-                Save Changes
+                Save
               </Button>
             </View>
           </ScrollView>

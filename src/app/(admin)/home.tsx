@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Alert,
 } from 'react-native';
@@ -11,17 +10,14 @@ import {
   TextInput,
   Button,
   Card,
-  Chip,
-  Divider,
   RadioButton,
   IconButton,
 } from 'react-native-paper';
+import DropDownPicker from 'react-native-dropdown-picker';
 import { supabase } from '../../../backend/supabaseClient';
 import { formatISO } from 'date-fns';
-import { TrialTemplate, Phase, Marker, Assessment, TrialMedication } from '../../types/admin';
-import { styles } from "../../styles/adminHome.styles"
-
-const generateId = (prefix = '') => `${prefix}${Math.random().toString(36).substring(2, 9)}`;
+import { Assessment, TrialMedication } from '../../types/admin';
+import { styles } from "../../styles/adminHome.styles";
 
 const categoryOptions = [
   'Clinical Exam',
@@ -31,139 +27,53 @@ const categoryOptions = [
   'Other',
 ];
 
+const generateId = (prefix = '') => `${prefix}${Math.random().toString(36).substring(2, 9)}`;
+
 const AdminTrialTemplateScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   // Basic trial info
   const [name, setName] = useState('');
   const [protocolVersion, setProtocolVersion] = useState('');
-  const [trialPhase, setTrialPhase] = useState('Induction');
-  const [numberOfCycles, setNumberOfCycles] = useState<number>(4);
-  const [cycleDurationDays, setCycleDurationDays] = useState<number>(42);
-  const [followUpDurationDays, setFollowUpDurationDays] = useState<number | undefined>(100);
+  const [numberOfCycles, setNumberOfCycles] = useState<string>('4');
+  const [cycleDurationDays, setCycleDurationDays] = useState<string>('42');
   const [notes, setNotes] = useState('');
 
-  // configuration
-  const [phases, setPhases] = useState<Phase[]>([
-    { id: generateId('phase-'), name: 'Induction', startDay: 1, endDay: null },
-  ]);
-  const [markers, setMarkers] = useState<Marker[]>([]);
+  // Assessments & Medications
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [medications, setMedications] = useState<TrialMedication[]>([]);
 
-  // local states for adding items
-  const [phaseNameInput, setPhaseNameInput] = useState('');
-  const [markerLabelInput, setMarkerLabelInput] = useState('');
-  const [markerRefDayInput, setMarkerRefDayInput] = useState<string>(''); // numeric string or empty
+  // Drafts
   const [assessmentDraft, setAssessmentDraft] = useState<Partial<Assessment>>({});
   const [medDraft, setMedDraft] = useState<Partial<TrialMedication>>({});
 
   const [saving, setSaving] = useState(false);
 
-  // derived: day tokens for cycle (d1 .. dN)
+  // Day tokens for Induction cycle
   const dayTokens = useMemo(() => {
-    const arr: string[] = [];
-    for (let i = 1; i <= cycleDurationDays; i += 1) {
-      arr.push(`d${i}`);
-    }
-    return arr;
+    const days = parseInt(cycleDurationDays, 10) || 0;
+    return Array.from({ length: days }, (_, i) => `d${i + 1}`);
   }, [cycleDurationDays]);
 
-  // helper to add phase
-  const addPhase = () => {
-    if (!phaseNameInput.trim()) {
-      Alert.alert('Validation', 'Phase name cannot be empty');
-      return;
-    }
-    const newPhase: Phase = { id: generateId('phase-'), name: phaseNameInput.trim() };
-    setPhases((p) => [...p, newPhase]);
-    setPhaseNameInput('');
-  };
+  // Cycle options for dropdowns
+  const cycleOptions = useMemo(() => {
+    const n = parseInt(numberOfCycles, 10) || 0;
+    return Array.from({ length: n }, (_, i) => (i + 1).toString());
+  }, [numberOfCycles]);
 
-  const removePhase = (id: string) => {
-    setPhases((p) => p.filter((x) => x.id !== id));
-    // also remove references in assessments
-    setAssessments((a) => a.map((ass) => ({ ...ass, applicablePhases: ass.applicablePhases.filter((ap) => ap !== id) })));
-  };
+  // Multi-select dropdown state for days
+  const [openDayDropdown, setOpenDayDropdown] = useState(false);
+  const dayItems = useMemo(() => dayTokens.map((d) => ({ label: `Day ${d.replace('d', '')}`, value: d })), [dayTokens]);
 
-  // markers
-  const addMarker = () => {
-    if (!markerLabelInput.trim()) {
-      Alert.alert('Validation', 'Marker label required');
-      return;
-    }
-    const refDay = markerRefDayInput ? parseInt(markerRefDayInput, 10) : undefined;
-    const newMarker: Marker = { id: generateId('marker-'), label: markerLabelInput.trim(), referenceDay: refDay || null };
-    setMarkers((m) => [...m, newMarker]);
-    setMarkerLabelInput('');
-    setMarkerRefDayInput('');
-  };
-
-  const removeMarker = (id: string) => {
-    setMarkers((m) => m.filter((x) => x.id !== id));
-    setAssessments((a) => a.map((ass) => ({ ...ass, scheduledDays: ass.scheduledDays.filter((s) => !s.startsWith(`marker:${id}`) ) })));
-    setMedications((ms) => ms.map((md) => ({ ...md, administrationPattern: md.administrationPattern.filter((s) => !s.startsWith(`marker:${id}`) ) })));
-  };
-
-  // Day selector component (returns array of selected tokens)
-  const DaySelector: React.FC<{
-    value: string[] | undefined;
-    onChange: (v: string[]) => void;
-    allowMarkers?: boolean;
-    compact?: boolean;
-  }> = ({ value = [], onChange, allowMarkers = true, compact = false }) => {
-    const toggle = (token: string) => {
-      if (value.includes(token)) onChange(value.filter((t) => t !== token));
-      else onChange([...value, token]);
-    };
-
-    return (
-      <View style={styles.daySelector}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRow}>
-          {dayTokens.map((d) => {
-            const selected = value.includes(d);
-            return (
-              <Chip
-                key={d}
-                mode={selected ? 'flat' : 'outlined'}
-                selected={selected}
-                onPress={() => toggle(d)}
-                style={[styles.dayChip, selected && styles.dayChipSelected]}
-              >
-                {d.replace('d', 'Day ')}
-              </Chip>
-            );
-          })}
-          {allowMarkers && markers.map((m) => {
-            const token = `marker:${m.id}`;
-            const selected = value.includes(token);
-            return (
-              <Chip
-                key={token}
-                mode={selected ? 'flat' : 'outlined'}
-                selected={selected}
-                onPress={() => toggle(token)}
-                style={[styles.markerChip, selected && styles.markerChipSelected]}
-              >
-                {m.label}
-              </Chip>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  };
-
-  // Assessments CRUD (local)
+  // Assessment CRUD
   const startAddAssessment = () => {
     setAssessmentDraft({
       id: generateId('ass-'),
       name: '',
       category: categoryOptions[0],
-      applicablePhases: phases.map((p) => p.id), // default all
       scheduledDays: [],
-      frequencyPattern: '',
-      notes: '',
+      applicableCycles: [],
+      requirements: '',
     });
   };
 
@@ -174,7 +84,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
       return;
     }
     if (assessments.some((a) => a.id === draft.id)) {
-      // update
       setAssessments((prev) => prev.map((a) => (a.id === draft.id ? draft : a)));
     } else {
       setAssessments((prev) => [draft, ...prev]);
@@ -182,17 +91,17 @@ const AdminTrialTemplateScreen: React.FC = () => {
     setAssessmentDraft({});
   };
 
-  const removeAssessment = (id: string) => {
-    setAssessments((a) => a.filter((x) => x.id !== id));
-  };
+  const removeAssessment = (id: string) => setAssessments((a) => a.filter((x) => x.id !== id));
 
-  // Medications CRUD
+  // Medication CRUD
   const startAddMedication = () => {
     setMedDraft({
       id: generateId('med-'),
       drugName: '',
+      dosage: '',
+      frequency: '',
       administrationPattern: [],
-      cycleApplicability: 'all',
+      applicableCycles: [],
       specialConditions: '',
     });
   };
@@ -211,105 +120,84 @@ const AdminTrialTemplateScreen: React.FC = () => {
     setMedDraft({});
   };
 
-  const removeMedication = (id: string) => {
-    setMedications((m) => m.filter((x) => x.id !== id));
+  const removeMedication = (id: string) => setMedications((m) => m.filter((x) => x.id !== id));
+
+  // Reset form
+  const resetForm = () => {
+    setName('');
+    setProtocolVersion('');
+    setNumberOfCycles('4');
+    setCycleDurationDays('42');
+    setNotes('');
+    setAssessments([]);
+    setMedications([]);
+    setAssessmentDraft({});
+    setMedDraft({});
   };
 
-  // Save trial template to supabase
+  // Save template to Supabase
   const saveTemplate = async () => {
     if (!name.trim() || !protocolVersion.trim()) {
       Alert.alert('Validation', 'Trial name and protocol version are required.');
       return;
     }
-    if (phases.length === 0) {
-      Alert.alert('Validation', 'At least one phase is required.');
-      return;
-    }
-
     setSaving(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       const createdBy = user?.id ?? null;
 
-      // create template
-      const templatePayload: Partial<TrialTemplate> = {
-        name: name.trim(),
-        protocolVersion: protocolVersion.trim(),
-        trialPhase,
-        numberOfCycles,
-        cycleDurationDays,
-        followUpDurationDays: followUpDurationDays || undefined,
-        notes: notes || undefined,
-        version: 1,
-        created_by: createdBy,
-        created_at: formatISO(new Date()),
-      };
+      const numCycles = parseInt(numberOfCycles, 10) || 0;
+      const cycleDays = parseInt(cycleDurationDays, 10) || 0;
 
-      const { data: templateData, error: templateError } = await supabase
-        .from('trial_templates')
-        .insert([templatePayload])
+      // Insert trial
+      const { data: trialData, error: trialError } = await supabase
+        .from('trials')
+        .insert([{
+          name: name.trim(),
+          protocol_version: protocolVersion.trim(),
+          trial_phase: 'Induction',
+          number_of_cycles: numCycles,
+          cycle_duration_days: cycleDays,
+          notes: notes?.trim() || null,
+          created_by: createdBy,
+          created_at: formatISO(new Date()),
+        }])
         .select()
         .single();
 
-      if (templateError) throw templateError;
-      const templateId = templateData.id;
+      if (trialError) throw trialError;
+      const trialId = trialData.id;
 
-      // insert phases
-      if (phases.length > 0) {
-        const phasesPayload = phases.map((p) => ({
-          trial_template_id: templateId,
-          name: p.name,
-          start_day: p.startDay || null,
-          end_day: p.endDay || null,
-        }));
-        const { error: phasesError } = await supabase.from('trial_phases').insert(phasesPayload);
-        if (phasesError) throw phasesError;
-      }
-
-      // insert markers
-      if (markers.length > 0) {
-        const markersPayload = markers.map((m) => ({
-          trial_template_id: templateId,
-          label: m.label,
-          reference_day: m.referenceDay || null,
-        }));
-        const { error: markersError } = await supabase.from('trial_markers').insert(markersPayload);
-        if (markersError) throw markersError;
-      }
-
-      // insert assessments
+      // Insert assessments
       if (assessments.length > 0) {
-        // Map human tokens to stored format. We'll store scheduled_days as text[] on DB.
         const assPayload = assessments.map((a) => ({
-          trial_template_id: templateId,
+          trial_id: trialId,
           name: a.name,
           category: a.category,
-          applicable_phases: a.applicablePhases,
-          scheduled_days: a.scheduledDays,
-          frequency_pattern: a.frequencyPattern || null,
-          notes: a.notes || null,
+          scheduled_days: a.scheduledDays.map((d) => parseInt(d.replace('d', ''), 10)),
+          applicable_cycles: a.applicableCycles,
+          requirements: a.requirements || null,
         }));
         const { error: assError } = await supabase.from('trial_assessments').insert(assPayload);
         if (assError) throw assError;
       }
 
-      // insert medications
+      // Insert medications
       if (medications.length > 0) {
         const medsPayload = medications.map((m) => ({
-          trial_template_id: templateId,
+          trial_id: trialId,
           drug_name: m.drugName,
+          dosage: m.dosage || null,
+          frequency: m.frequency || null,
           administration_pattern: m.administrationPattern,
-          cycle_applicability: m.cycleApplicability,
+          applicable_cycles: m.applicableCycles,
           special_conditions: m.specialConditions || null,
         }));
-        const { error: medsError } = await supabase.from('trial_medications').insert(medsPayload);
+        const { error: medsError } = await supabase.from('trial_medications_template').insert(medsPayload);
         if (medsError) throw medsError;
       }
 
       Alert.alert('Success', 'Trial template created successfully.');
-      // optionally reset form
       resetForm();
     } catch (err: any) {
       console.error('Failed to save template', err);
@@ -319,226 +207,189 @@ const AdminTrialTemplateScreen: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setName('');
-    setProtocolVersion('');
-    setTrialPhase('Induction');
-    setNumberOfCycles(4);
-    setCycleDurationDays(42);
-    setFollowUpDurationDays(100);
-    setNotes('');
-    setPhases([{ id: generateId('phase-'), name: 'Induction', startDay: 1 }]);
-    setMarkers([]);
-    setAssessments([]);
-    setMedications([]);
-  };
-
-  useEffect(() => {
-    // Keep assessmentDraft.applicablePhases updated if phases change
-    if (assessmentDraft && Object.keys(assessmentDraft).length > 0) {
-      setAssessmentDraft((d) => {
-        const draft = d as Partial<Assessment>;
-        if (!draft.applicablePhases || draft.applicablePhases.length === 0) {
-          return { ...draft, applicablePhases: phases.map((p) => p.id) };
-        }
-        return draft;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phases]);
-
   return (
     <SafeAreaView style={[styles.safeArea, { paddingTop: insets.top }]} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.header}>Create Trial Template</Text>
 
-        {/* Basic Trial Information */}
+        {/* Basic Trial Info */}
         <Card style={styles.card}>
           <Card.Title title="Basic Trial Information" />
           <Card.Content>
             <TextInput label="Trial Name" value={name} onChangeText={setName} mode="outlined" style={styles.input} />
             <TextInput label="Protocol Version" value={protocolVersion} onChangeText={setProtocolVersion} mode="outlined" style={styles.input} />
-            <TextInput label="Trial Phase (label)" value={trialPhase} onChangeText={setTrialPhase} mode="outlined" style={styles.input} />
-            <View style={styles.row}>
-              <TextInput
-                label="Number of Cycles"
-                value={String(numberOfCycles)}
-                keyboardType="number-pad"
-                onChangeText={(t) => setNumberOfCycles(Number(t) || 0)}
-                mode="outlined"
-                style={[styles.input, styles.half]}
-              />
-              <TextInput
-                label="Cycle Duration (days)"
-                value={String(cycleDurationDays)}
-                keyboardType="number-pad"
-                onChangeText={(t) => setCycleDurationDays(Number(t) || 0)}
-                mode="outlined"
-                style={[styles.input, styles.half]}
-              />
-            </View>
-            <TextInput label="Follow-up Duration (days)" value={followUpDurationDays ? String(followUpDurationDays) : ''} keyboardType="number-pad" onChangeText={(t) => setFollowUpDurationDays(t ? Number(t) : undefined)} mode="outlined" style={styles.input} />
-            <TextInput label="Custom Notes" value={notes} onChangeText={setNotes} mode="outlined" multiline style={[styles.input, { minHeight: 80 }]} />
+            <TextInput
+              label="Number of Cycles"
+              value={numberOfCycles}
+              keyboardType="number-pad"
+              onChangeText={setNumberOfCycles}
+              mode="outlined"
+              style={styles.input}
+            />
+            <TextInput
+              label="Cycle Duration (days)"
+              value={cycleDurationDays}
+              keyboardType="number-pad"
+              onChangeText={setCycleDurationDays}
+              mode="outlined"
+              style={styles.input}
+            />
+            <TextInput label="Notes (optional)" value={notes} onChangeText={setNotes} mode="outlined" multiline style={[styles.input, { minHeight: 80 }]} />
           </Card.Content>
         </Card>
 
-        {/* Schedule Configuration */}
-        <Card style={styles.card}>
-          <Card.Title title="Schedule Configuration" subtitle="Phases, Cycle days and special markers" />
-          <Card.Content>
-            <Text style={styles.subhead}>Phases</Text>
-            {phases.map((p) => (
-              <View key={p.id} style={styles.itemRow}>
-                <Text style={styles.itemText}>{p.name}</Text>
-                <View style={styles.itemActions}>
-                  <IconButton icon="delete" size={20} onPress={() => removePhase(p.id)} />
-                </View>
-              </View>
-            ))}
-            <View style={styles.row}>
-              <TextInput placeholder="Phase name" value={phaseNameInput} onChangeText={setPhaseNameInput} mode="outlined" style={[styles.input, styles.flex]} />
-              <Button mode="contained" onPress={addPhase} style={styles.addBtn}>Add</Button>
-            </View>
-
-            <Divider style={{ marginVertical: 12 }} />
-
-            <Text style={styles.subhead}>Special Markers (e.g., End of C2, Day 100 post-ASCT)</Text>
-            {markers.map((m) => (
-              <View key={m.id} style={styles.itemRow}>
-                <Text style={styles.itemText}>{m.label}{m.referenceDay ? ` (Day ${m.referenceDay})` : ''}</Text>
-                <IconButton icon="delete" size={20} onPress={() => removeMarker(m.id)} />
-              </View>
-            ))}
-
-            <View style={styles.row}>
-              <TextInput placeholder="Marker label" value={markerLabelInput} onChangeText={setMarkerLabelInput} mode="outlined" style={[styles.input, styles.flex]} />
-              <TextInput placeholder="Reference day (optional)" value={markerRefDayInput} onChangeText={setMarkerRefDayInput} keyboardType="number-pad" style={[styles.input, styles.small]} mode="outlined" />
-              <Button mode="contained" onPress={addMarker} style={styles.addBtn}>Add</Button>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Assessments / Evaluations */}
+        {/* Assessments */}
         <Card style={styles.card}>
           <Card.Title title="Assessments / Evaluations" />
           <Card.Content>
             <Button mode="outlined" onPress={startAddAssessment} style={{ marginBottom: 12 }}>New Assessment</Button>
-
             {assessmentDraft && Object.keys(assessmentDraft).length > 0 && (
               <View style={styles.draftContainer}>
                 <TextInput label="Assessment Name" value={assessmentDraft.name || ''} onChangeText={(t) => setAssessmentDraft((d) => ({ ...(d as Assessment), name: t }))} mode="outlined" style={styles.input} />
                 <Text style={styles.label}>Category</Text>
                 <RadioButton.Group onValueChange={(v) => setAssessmentDraft((d) => ({ ...(d as Assessment), category: v }))} value={assessmentDraft.category || categoryOptions[0]}>
-                  <View style={styles.row}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {categoryOptions.map((c) => (
-                      <View key={c} style={styles.radioItem}>
+                      <View key={c} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}>
                         <RadioButton value={c} />
-                        <Text style={{ alignSelf: 'center' }}>{c}</Text>
+                        <Text>{c}</Text>
                       </View>
                     ))}
                   </View>
                 </RadioButton.Group>
 
-                <Text style={styles.label}>Applicable Phases</Text>
-                <View style={styles.chipsWrap}>
-                  {phases.map((p) => {
-                    const selected = (assessmentDraft.applicablePhases || []).includes(p.id);
+                <Text style={styles.label}>Scheduled Days</Text>
+                <DropDownPicker
+                  multiple={true}
+                  open={openDayDropdown}
+                  value={assessmentDraft.scheduledDays}
+                  items={dayItems}
+                  setOpen={setOpenDayDropdown}
+                  setValue={(callback) => setAssessmentDraft((d) => ({ ...(d as Assessment), scheduledDays: callback(d?.scheduledDays || []) }))}
+                  placeholder="Select Scheduled Days"
+                  mode="BADGE"
+                  style={{ marginBottom: 8 }}
+                />
+
+                <Text style={styles.label}>Applicable Cycles</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                  {cycleOptions.map((c) => {
+                    const selected = (assessmentDraft.applicableCycles || []).includes(c);
                     return (
-                      <Chip key={p.id} mode={selected ? 'flat' : 'outlined'} selected={selected} onPress={() => {
-                        const aps = new Set(assessmentDraft.applicablePhases || []);
-                        if (aps.has(p.id)) aps.delete(p.id); else aps.add(p.id);
-                        setAssessmentDraft((d) => ({ ...(d as Assessment), applicablePhases: Array.from(aps) }));
-                      }} style={styles.chipSmall}>
-                        {p.name}
-                      </Chip>
+                      <Button
+                        key={c}
+                        mode={selected ? 'contained' : 'outlined'}
+                        onPress={() => {
+                          const aps = new Set(assessmentDraft.applicableCycles || []);
+                          if (aps.has(c)) aps.delete(c); else aps.add(c);
+                          setAssessmentDraft((d) => ({ ...(d as Assessment), applicableCycles: Array.from(aps) }));
+                        }}
+                        style={{ marginRight: 4, marginBottom: 4 }}
+                      >
+                        {c}
+                      </Button>
                     );
                   })}
                 </View>
 
-                <Text style={styles.label}>Scheduled Days / Markers</Text>
-                <DaySelector value={assessmentDraft.scheduledDays} onChange={(v) => setAssessmentDraft((d) => ({ ...(d as Assessment), scheduledDays: v }))} allowMarkers />
+                <TextInput label="Requirements?" value={assessmentDraft.requirements || ''} onChangeText={(t) => setAssessmentDraft((d) => ({ ...(d as Assessment), requirements: t }))} mode="outlined" multiline style={[styles.input, { minHeight: 80 }]} />
 
-                <TextInput label="Frequency Pattern (optional)" value={assessmentDraft.frequencyPattern || ''} onChangeText={(t) => setAssessmentDraft((d) => ({ ...(d as Assessment), frequencyPattern: t }))} mode="outlined" style={styles.input} />
-                <TextInput label="Notes / Conditions (optional)" value={assessmentDraft.notes || ''} onChangeText={(t) => setAssessmentDraft((d) => ({ ...(d as Assessment), notes: t }))} mode="outlined" multiline style={[styles.input, { minHeight: 80 }]} />
-
-                <View style={styles.row}>
-                  <Button mode="outlined" onPress={() => setAssessmentDraft({})} style={styles.flex}>Cancel</Button>
-                  <Button mode="contained" onPress={saveAssessmentDraft} style={[styles.flex, { marginLeft: 8 }]}>Save Assessment</Button>
+                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                  <Button mode="outlined" onPress={() => setAssessmentDraft({})} style={{ flex: 1 }}>Cancel</Button>
+                  <Button mode="contained" onPress={saveAssessmentDraft} style={{ flex: 1, marginLeft: 8 }}>Save Assessment</Button>
                 </View>
               </View>
             )}
 
-            <Divider style={{ marginVertical: 12 }} />
-
-            <Text style={styles.subhead}>Added Assessments</Text>
-            {assessments.length === 0 ? <Text style={styles.noData}>No assessments added</Text> : assessments.map((a) => (
+            {assessments.length > 0 ? assessments.map((a) => (
               <Card key={a.id} style={styles.itemCard}>
                 <Card.Content>
-                  <View style={styles.itemRow}>
-                    <Text style={styles.itemText}>{a.name} <Text style={styles.smallText}>({a.category})</Text></Text>
-                    <View style={styles.itemActions}>
-                      <IconButton icon="delete" size={20} onPress={() => removeAssessment(a.id)} />
-                    </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>{a.name} ({a.category})</Text>
+                    <IconButton icon="delete" size={20} onPress={() => removeAssessment(a.id)} />
                   </View>
-                  <Text style={styles.smallText}>Phases: {a.applicablePhases.map((id) => phases.find((p) => p.id === id)?.name || id).join(', ')}</Text>
-                  <Text style={styles.smallText}>Days: {a.scheduledDays.join(', ')}</Text>
-                  {a.frequencyPattern ? <Text style={styles.smallText}>Freq: {a.frequencyPattern}</Text> : null}
+                  <Text>Days: {a.scheduledDays.join(', ')}</Text>
+                  {a.applicableCycles && <Text>Cycles: {a.applicableCycles.join(', ')}</Text>}
+                  {a.requirements && <Text>Requirements: {a.requirements}</Text>}
                 </Card.Content>
               </Card>
-            ))}
+            )) : <Text>No assessments added</Text>}
           </Card.Content>
         </Card>
 
-        {/* Medication Administration */}
+        {/* Medications */}
         <Card style={styles.card}>
           <Card.Title title="Medication Administration" />
           <Card.Content>
             <Button mode="outlined" onPress={startAddMedication} style={{ marginBottom: 12 }}>New Drug Regimen</Button>
-
             {medDraft && Object.keys(medDraft).length > 0 && (
               <View style={styles.draftContainer}>
                 <TextInput label="Drug Name" value={medDraft.drugName || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), drugName: t }))} mode="outlined" style={styles.input} />
-                <Text style={styles.label}>Administration Pattern (select days/markers)</Text>
-                <DaySelector value={medDraft.administrationPattern} onChange={(v) => setMedDraft((d) => ({ ...(d as TrialMedication), administrationPattern: v }))} allowMarkers />
-                <TextInput label="Cycle Applicability (e.g., 1-2, all)" value={medDraft.cycleApplicability || 'all'} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), cycleApplicability: t }))} mode="outlined" style={styles.input} />
-                <TextInput label="Special Conditions" value={medDraft.specialConditions || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), specialConditions: t }))} mode="outlined" style={styles.input} />
-                <View style={styles.row}>
-                  <Button mode="outlined" onPress={() => setMedDraft({})} style={styles.flex}>Cancel</Button>
-                  <Button mode="contained" onPress={saveMedDraft} style={[styles.flex, { marginLeft: 8 }]}>Save Drug</Button>
+                <TextInput label="Dosage" value={medDraft.dosage || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), dosage: t }))} mode="outlined" style={styles.input} />
+                <TextInput label="Frequency" value={medDraft.frequency || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), frequency: t }))} mode="outlined" style={styles.input} />
+
+                <Text style={styles.label}>Administration Pattern</Text>
+                <DropDownPicker
+                  multiple={true}
+                  open={openDayDropdown}
+                  value={medDraft.administrationPattern || []}
+                  items={dayItems}
+                  setOpen={setOpenDayDropdown}
+                  setValue={(callback) => setMedDraft((d) => ({ ...(d as TrialMedication), administrationPattern: callback(d?.administrationPattern || []) }))}
+                  placeholder="Select Administration Days"
+                  mode="BADGE"
+                  style={{ marginBottom: 8 }}
+                />
+
+                <Text style={styles.label}>Applicable Cycles</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                  {cycleOptions.map((c) => {
+                    const selected = (medDraft.applicableCycles || []).includes(c);
+                    return (
+                      <Button
+                        key={c}
+                        mode={selected ? 'contained' : 'outlined'}
+                        onPress={() => {
+                          const aps = new Set(medDraft.applicableCycles || []);
+                          if (aps.has(c)) aps.delete(c); else aps.add(c);
+                          setMedDraft((d) => ({ ...(d as TrialMedication), applicableCycles: Array.from(aps) }));
+                        }}
+                        style={{ marginRight: 4, marginBottom: 4 }}
+                      >
+                        {c}
+                      </Button>
+                    );
+                  })}
+                </View>
+
+                <TextInput label="Special Conditions" value={medDraft.specialConditions || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), specialConditions: t || null }))} mode="outlined" style={styles.input} />
+
+                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                  <Button mode="outlined" onPress={() => setMedDraft({})} style={{ flex: 1 }}>Cancel</Button>
+                  <Button mode="contained" onPress={saveMedDraft} style={{ flex: 1, marginLeft: 8 }}>Save Drug</Button>
                 </View>
               </View>
             )}
 
-            <Divider style={{ marginVertical: 12 }} />
-            <Text style={styles.subhead}>Drug Regimens</Text>
-            {medications.length === 0 ? <Text style={styles.noData}>No drug regimens added</Text> : medications.map((m) => (
+            {medications.length > 0 ? medications.map((m) => (
               <Card key={m.id} style={styles.itemCard}>
                 <Card.Content>
-                  <View style={styles.itemRow}>
-                    <Text style={styles.itemText}>{m.drugName}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>{m.drugName}</Text>
                     <IconButton icon="delete" size={20} onPress={() => removeMedication(m.id)} />
                   </View>
-                  <Text style={styles.smallText}>Pattern: {m.administrationPattern.join(', ')}</Text>
-                  <Text style={styles.smallText}>Cycles: {m.cycleApplicability}</Text>
-                  {m.specialConditions ? <Text style={styles.smallText}>Conditions: {m.specialConditions}</Text> : null}
+                  {m.dosage && <Text>Dosage: {m.dosage}</Text>}
+                  {m.frequency && <Text>Frequency: {m.frequency}</Text>}
+                  <Text>Pattern: {m.administrationPattern.join(', ')}</Text>
+                  {m.applicableCycles && <Text>Cycles: {m.applicableCycles.join(', ')}</Text>}
+                  {m.specialConditions && <Text>Conditions: {m.specialConditions}</Text>}
                 </Card.Content>
               </Card>
-            ))}
+            )) : <Text>No drug regimens added</Text>}
           </Card.Content>
         </Card>
 
-        {/* Metadata + Save */}
-        <Card style={styles.card}>
-          <Card.Title title="Metadata & Versioning" />
-          <Card.Content>
-            <Text style={styles.smallText}>Templates are versioned on creation. Updating an existing template should create a new version (not implemented in this screen).</Text>
-            <View style={styles.row}>
-              <Button mode="outlined" onPress={resetForm} style={[styles.flex]}>Reset</Button>
-              <Button mode="contained" onPress={saveTemplate} loading={saving} style={[styles.flex, { marginLeft: 8 }]}>Save Template</Button>
-            </View>
-          </Card.Content>
-        </Card>
-
+        <Button mode="contained" onPress={saveTemplate} loading={saving} style={{ marginVertical: 12 }}>Save Template</Button>
       </ScrollView>
     </SafeAreaView>
   );
