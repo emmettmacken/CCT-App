@@ -38,6 +38,12 @@ export const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#333',
     fontWeight: 'bold',
+    fontSize: 15,
+  },
+  radioValue: {
+    color: '#3f51b5',
+    fontSize: 16,
+    fontWeight: '400',
   },
   logButton: {
     marginTop: 10,

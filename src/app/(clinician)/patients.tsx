@@ -1,12 +1,12 @@
 import { format, parseISO } from "date-fns";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-  Alert,
 } from "react-native";
 import { Button, Card, Chip, List, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -45,9 +45,7 @@ const addDays = (date: Date, days: number) => {
 
 const PatientListScreen = ({ navigation }: { navigation: any }) => {
   const [patients, setPatients] = useState<ListPatient[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<ListPatient[]>(
-    []
-  );
+  const [filteredPatients, setFilteredPatients] = useState<ListPatient[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [trialFilter, setTrialFilter] = useState<TrialFilter>("All");
   const [loading, setLoading] = useState(true);
@@ -55,7 +53,10 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
     null
   );
-  const [trialFilters, setTrialFilters] = useState<string[]>(["All", "Unassigned"]);
+  const [trialFilters, setTrialFilters] = useState<string[]>([
+    "All",
+    "Unassigned",
+  ]);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -67,7 +68,9 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
         const { data, error } = await supabase
           .from("profiles")
-          .select("id, name, role, trial_name, trial_phase, trial_progress, weight, height, age, trial_id")
+          .select(
+            "id, name, role, trial_name, trial_phase, trial_progress, weight, height, age, trial_id"
+          )
           .eq("role", "patient");
 
         if (error) throw error;
@@ -107,9 +110,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
   useEffect(() => {
     const fetchTrials = async () => {
-      const { data, error } = await supabase
-        .from("trials")
-        .select("name");
+      const { data, error } = await supabase.from("trials").select("name");
       if (error) {
         console.error("Error fetching trials:", error);
       } else {
@@ -120,7 +121,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
     fetchTrials();
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     let result = [...patients];
 
     if (searchQuery) {
@@ -130,7 +131,9 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
     if (trialFilter !== "All") {
       if (trialFilter === "Unassigned") {
-        result = result.filter((p) => !p.trial_name || p.trial_name.trim() === "");
+        result = result.filter(
+          (p) => !p.trial_name || p.trial_name.trim() === ""
+        );
       } else {
         result = result.filter(
           (p) =>
@@ -167,7 +170,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
             <Chip
               key={val}
               selected={trialFilter === val}
-              onPress={() => setTrialFilter(val as TrialFilter)}
+              onPress={() => setTrialFilter(val)}
               style={styles.chip}
             >
               {val}
@@ -249,7 +252,9 @@ const PatientProfileScreen = ({
 
   // edit medication modal
   const [showEditMedModal, setShowEditMedModal] = useState(false);
-  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
+  const [editingMedication, setEditingMedication] = useState<Medication | null>(
+    null
+  );
   const [editMedName, setEditMedName] = useState("");
   const [editMedDosage, setEditMedDosage] = useState("");
   const [editMedFrequency, setEditMedFrequency] = useState("");
@@ -325,7 +330,10 @@ const PatientProfileScreen = ({
                 data: { user },
               } = await supabase.auth.getUser();
               if (!user) {
-                Alert.alert("Not logged in", "You must be logged in to assign.");
+                Alert.alert(
+                  "Not logged in",
+                  "You must be logged in to assign."
+                );
                 return;
               }
 
@@ -338,72 +346,122 @@ const PatientProfileScreen = ({
                 .limit(1);
 
               if (existing && existing.length > 0) {
-                Alert.alert("Already assigned", "This patient is already assigned to that trial.");
+                Alert.alert(
+                  "Already assigned",
+                  "This patient is already assigned to that trial."
+                );
                 setShowAssignModal(false);
                 setSelectedTrial(null);
                 return;
               }
 
               // 1) Insert into patient_trials and return the row (we need id and start_date)
-              const {
-                data: patientTrialRow,
-                error: patientTrialError,
-              } = await supabase
-                .from("patient_trials")
-                .insert([
-                  {
-                    patient_id: patient.id,
-                    trial_id: selectedTrial,
-                    assigned_by: user.id,
-                    status: "assigned",
-                  },
-                ])
-                .select("*")
-                .single();
+              const { data: patientTrialRow, error: patientTrialError } =
+                await supabase
+                  .from("patient_trials")
+                  .insert([
+                    {
+                      patient_id: patient.id,
+                      trial_id: selectedTrial,
+                      assigned_by: user.id,
+                      status: "assigned",
+                    },
+                  ])
+                  .select("*")
+                  .single();
 
               if (patientTrialError) {
-                console.error("Error inserting patient_trial:", patientTrialError);
-                Alert.alert("Error", "Could not assign trial (patient_trials insert).");
+                console.error(
+                  "Error inserting patient_trial:",
+                  patientTrialError
+                );
+                Alert.alert(
+                  "Error",
+                  "Could not assign trial (patient_trials insert)."
+                );
                 return;
               }
 
               const patientTrialId = patientTrialRow.id;
-              const startDateStr = patientTrialRow.start_date || new Date().toISOString().split("T")[0];
+              const startDateStr =
+                patientTrialRow.start_date ||
+                new Date().toISOString().split("T")[0];
               const startDate = new Date(startDateStr);
 
               // 2) Fetch trial assessments and create appointments
-              const { data: assessments, error: assessmentsError } = await supabase
-                .from("trial_assessments")
-                .select("*")
-                .eq("trial_id", selectedTrial);
+              const { data: assessments, error: assessmentsError } =
+                await supabase
+                  .from("trial_assessments")
+                  .select("*")
+                  .eq("trial_id", selectedTrial);
 
               if (assessmentsError) {
-                console.error("Error fetching trial_assessments:", assessmentsError);
-                Alert.alert("Warning", "Assigned trial but could not fetch assessments.");
+                console.error(
+                  "Error fetching trial_assessments:",
+                  assessmentsError
+                );
+                Alert.alert(
+                  "Warning",
+                  "Assigned trial but could not fetch assessments."
+                );
               } else if (assessments && assessments.length > 0) {
                 const appointmentsToInsert: any[] = [];
 
-                assessments.forEach((a: any) => {
-                  const scheduled_days = a.scheduled_days || [];
-                  const daysArray = Array.isArray(scheduled_days)
-                    ? scheduled_days
-                    : [scheduled_days];
+                // Fetch trial details (number_of_cycles + cycle_duration_days)
+                const { data: trialData, error: trialError } = await supabase
+                  .from("trials")
+                  .select("number_of_cycles, cycle_duration_days")
+                  .eq("id", selectedTrial)
+                  .single();
 
-                  daysArray.forEach((rawDay: any) => {
-                    const dayNum = Number(rawDay);
-                    if (Number.isNaN(dayNum)) return;
-                    const apptDate = addDays(startDate, dayNum - 1);
-                    appointmentsToInsert.push({
-                      user_id: patient.id,
-                      date: apptDate.toISOString().split("T")[0],
-                      time: null,
-                      title: a.name,
-                      category: a.category || "Clinic",
-                      requirements: a.requirements ? [a.requirements] : null,
-                      patient_trial_id: patientTrialId,
+                if (trialError || !trialData) {
+                  console.error("Error fetching trial info:", trialError);
+                } else {
+                  const { number_of_cycles, cycle_duration_days } = trialData;
+
+                  assessments.forEach((a: any) => {
+                    // applicable_cycles: directly use array, default to all cycles if empty/null
+                    const applicableCycles: number[] =
+                      Array.isArray(a.applicable_cycles) &&
+                      a.applicable_cycles.length > 0
+                        ? a.applicable_cycles.map(Number)
+                        : Array.from(
+                            { length: number_of_cycles },
+                            (_, i) => i + 1
+                          );
+
+                    // scheduled_days: directly use array, default to empty array if null
+                    const scheduledDays: number[] = Array.isArray(
+                      a.scheduled_days
+                    )
+                      ? a.scheduled_days.map(Number)
+                      : [];
+
+                    // Loop through cycles + scheduled days
+                    applicableCycles.forEach((cycle: number) => {
+                      scheduledDays.forEach((dayNum: number) => {
+                        if (Number.isNaN(dayNum) || Number.isNaN(cycle)) return;
+
+                        // calculate offset from cycle start
+                        const offset =
+                          (cycle - 1) * cycle_duration_days + (dayNum - 1);
+                        const apptDate = addDays(startDate, offset);
+
+                        appointmentsToInsert.push({
+                          user_id: patient.id,
+                          date: apptDate.toISOString().split("T")[0], // YYYY-MM-DD
+                          time: null,
+                          title: a.name,
+                          category: a.category || "Clinic",
+                          requirements: a.requirements
+                            ? [a.requirements]
+                            : null,
+                          patient_trial_id: patientTrialId,
+                        });
+                      });
                     });
                   });
-                });
+                }
 
                 if (appointmentsToInsert.length > 0) {
                   const { error: insertAppointmentsError } = await supabase
@@ -411,52 +469,166 @@ const PatientProfileScreen = ({
                     .insert(appointmentsToInsert);
 
                   if (insertAppointmentsError) {
-                    console.error("Error inserting appointments:", insertAppointmentsError);
-                    Alert.alert("Warning", "Assigned trial but could not create appointments.");
+                    console.error(
+                      "Error inserting appointments:",
+                      insertAppointmentsError
+                    );
+                    Alert.alert(
+                      "Warning",
+                      "Assigned trial but could not create appointments."
+                    );
                   } else {
-                    console.log("Inserted appointments:", appointmentsToInsert.length);
+                    console.log(
+                      "Inserted appointments:",
+                      appointmentsToInsert.length
+                    );
                   }
                 } else {
-                  console.log("No appointment rows to insert (no scheduled_days found).");
+                  console.log(
+                    "No appointment rows to insert (no scheduled_days found)."
+                  );
                 }
               }
-
               // 3) Fetch trial medication templates and insert into trial_medications
-              const { data: medsTemplate, error: medsTemplateError } = await supabase
-                .from("trial_medications_template")
-                .select("*")
-                .eq("trial_id", selectedTrial);
+              try {
+                console.log("Starting Step 3 (medications)...");
 
-              if (medsTemplateError) {
-                console.error("Error fetching meds template:", medsTemplateError);
-                Alert.alert("Warning", "Assigned trial but could not fetch medication templates.");
-              } else if (medsTemplate && medsTemplate.length > 0) {
-                const medsToInsert = medsTemplate.map((m: any) => ({
-                  user_id: patient.id,
-                  name: m.drug_name,
-                  dosage: m.dosage,
-                  frequency: m.frequency,
-                  created_at: new Date().toISOString(),
-                  notes: JSON.stringify({
-                    applicable_cycles: m.applicable_cycles ?? null,
-                    special_conditions: m.special_conditions ?? null,
-                    administration_pattern: m.administration_pattern ?? null,
-                  }),
-                  patient_trial_id: patientTrialId,
-                }));
+                // 3a) Fetch trial to get cycle_duration_days
+                const { data: trialRow, error: trialError } = await supabase
+                  .from("trials")
+                  .select("id, cycle_duration_days")
+                  .eq("id", selectedTrial)
+                  .single();
+
+                if (trialError || !trialRow) {
+                  console.error("Error fetching trial row:", trialError);
+                  Alert.alert(
+                    "Error",
+                    "Could not fetch trial data for cycle duration."
+                  );
+                  return;
+                }
+
+                const cycleDurationDays = trialRow.cycle_duration_days;
+                console.log(
+                  "Fetched cycleDurationDays from trials table:",
+                  cycleDurationDays
+                );
+
+                // 3b) Fetch medication templates
+                const { data: medsTemplate, error: medsTemplateError } =
+                  await supabase
+                    .from("trial_medications_template")
+                    .select("*")
+                    .eq("trial_id", selectedTrial);
+
+                if (medsTemplateError) {
+                  console.error(
+                    "Error fetching meds template:",
+                    medsTemplateError
+                  );
+                  Alert.alert(
+                    "Warning",
+                    "Assigned trial but could not fetch medication templates."
+                  );
+                  return;
+                }
+
+                if (!medsTemplate || medsTemplate.length === 0) {
+                  console.log("No medication templates found for this trial.");
+                  return;
+                }
+
+                console.log(
+                  "Fetched medication templates:",
+                  JSON.stringify(medsTemplate)
+                );
+
+                const medsToInsert: any[] = [];
+
+                // 3c) Process each template
+                medsTemplate.forEach((m: any) => {
+                  const rawApplicableCycles: number[] = Array.isArray(
+                    m.applicable_cycles
+                  )
+                    ? m.applicable_cycles
+                    : [];
+                  const rawScheduledDays: number[] = Array.isArray(
+                    m.scheduled_days
+                  )
+                    ? m.scheduled_days
+                    : [];
+
+                  const uniqueCycles = [...new Set(rawApplicableCycles)];
+                  const uniqueDays = [...new Set(rawScheduledDays)];
+
+                  console.log("Processing medication template:", {
+                    drug_name: m.drug_name,
+                    rawApplicableCycles,
+                    rawScheduledDays,
+                    uniqueCycles,
+                    uniqueDays,
+                  });
+
+                  uniqueCycles.forEach((cycle: number) => {
+                    uniqueDays.forEach((dayNum: number) => {
+                      const cycleOffset = (cycle - 1) * cycleDurationDays;
+                      const dayOffset = dayNum - 1;
+                      const totalOffset = cycleOffset + dayOffset;
+
+                      const medDate = addDays(startDate, totalOffset);
+
+                      console.log(`→ Creating med row for ${m.drug_name}:`, {
+                        cycle,
+                        cycleOffset,
+                        dayNum,
+                        dayOffset,
+                        totalOffset,
+                        medDate: medDate.toISOString().split("T")[0],
+                      });
+
+                      medsToInsert.push({
+                        user_id: patient.id,
+                        name: m.drug_name,
+                        dosage: m.dosage,
+                        frequency: m.frequency,
+                        scheduled_date: medDate.toISOString().split("T")[0],
+                        created_at: new Date().toISOString(),
+                        notes: m.special_conditions || "No ",
+                        patient_trial_id: patientTrialId,
+                      });
+                    });
+                  });
+                });
 
                 if (medsToInsert.length > 0) {
+                  console.log("Final medsToInsert:", medsToInsert);
+
                   const { error: insertMedsError } = await supabase
                     .from("trial_medications")
                     .insert(medsToInsert);
 
                   if (insertMedsError) {
-                    console.error("Error inserting trial_medications:", insertMedsError);
-                    Alert.alert("Warning", "Assigned trial but could not create medications.");
+                    console.error(
+                      "Error inserting trial_medications:",
+                      insertMedsError
+                    );
+                    Alert.alert(
+                      "Warning",
+                      "Assigned trial but could not create medications."
+                    );
                   } else {
                     console.log("Inserted medications:", medsToInsert.length);
                   }
+                } else {
+                  console.log("No medication rows to insert.");
                 }
+              } catch (err) {
+                console.error("Unexpected error in Step 3:", err);
+                Alert.alert(
+                  "Error",
+                  "An unexpected error occurred while creating medications."
+                );
               }
 
               // 4) Also update profile for easy filtering
@@ -470,7 +642,10 @@ const PatientProfileScreen = ({
                 .eq("id", patient.id);
 
               if (updateProfileError) {
-                console.error("Error updating profile fields:", updateProfileError);
+                console.error(
+                  "Error updating profile fields:",
+                  updateProfileError
+                );
               }
 
               // 5) close modal, clear selection and refresh patient data
@@ -482,7 +657,10 @@ const PatientProfileScreen = ({
               Alert.alert("Success", "Trial assigned and items copied.");
             } catch (error) {
               console.error("Error assigning trial:", error);
-              Alert.alert("Error", "An unexpected error occurred while assigning the trial.");
+              Alert.alert(
+                "Error",
+                "An unexpected error occurred while assigning the trial."
+              );
             }
           },
         },
@@ -546,7 +724,9 @@ const PatientProfileScreen = ({
           </View>
           <Text style={styles.profileName}>{patient.name}</Text>
           <Text style={styles.profileDetails}>
-            {patient.trial_name ?? "Unassigned"} | {patient.age} years | {patient.weight} kg | {patient.height} cm | Trial ID: {patient.trial_id ?? "-"}
+            {patient.trial_name ?? "Unassigned"} | {patient.age} years |{" "}
+            {patient.weight} kg | {patient.height} cm | Trial ID:{" "}
+            {patient.trial_id ?? "-"}
           </Text>
         </View>
 
@@ -622,10 +802,14 @@ const PatientProfileScreen = ({
                     <List.Item
                       key={med.id}
                       title={med.name}
-                      description={`${med.dosage ?? ""} - ${med.frequency ?? ""}`}
+                      description={`${med.dosage ?? ""} - ${
+                        med.frequency ?? ""
+                      }`}
                       left={() => <List.Icon icon="pill" />}
                       right={() => (
-                        <TouchableOpacity onPress={() => handleEditMedication(med)}>
+                        <TouchableOpacity
+                          onPress={() => handleEditMedication(med)}
+                        >
                           <List.Icon icon="pencil" />
                         </TouchableOpacity>
                       )}
@@ -662,7 +846,12 @@ const PatientProfileScreen = ({
                 ]}
                 onPress={() => setSelectedTrial(trial.id)}
               >
-                <Text>
+                <Text
+                  style={[
+                    styles.trialOptionText,
+                    selectedTrial === trial.id && styles.activeTrialOptionText,
+                  ]}
+                >
                   {trial.name} (Phase {trial.trial_phase ?? trial.phase ?? "-"})
                 </Text>
               </TouchableOpacity>

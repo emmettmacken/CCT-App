@@ -150,7 +150,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#3f51b5',
+    backgroundColor: '#007AFF',
   },
   tabText: {
     fontWeight: 'bold',
@@ -216,4 +216,26 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#3f51b5',
   },
+  trialOption: {
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#ccc",
+  backgroundColor: "#f8f8f8",
+  marginBottom: 12,
+},
+activeTrialOption: {
+  backgroundColor: "#007AFF",
+  borderColor: "#3f51b5",
+},
+trialOptionText: {
+  fontSize: 16,
+  color: "#333",
+  fontWeight: "500",
+},
+activeTrialOptionText: {
+  color: "#fff",
+  fontWeight: "600",
+},
 });
