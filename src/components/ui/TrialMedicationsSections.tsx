@@ -40,24 +40,29 @@ export const TrialMedicationsSection: React.FC<Props> = ({
             <View style={styles.radioGroup}>
               {trialMedications.map((med) => (
                 <View key={med.id} style={styles.radioItem}>
-                  <RadioButton
+                  <RadioButton.Android
                     value={med.id}
                     status={
                       selectedTrialMed?.id === med.id ? "checked" : "unchecked"
                     }
                     onPress={() => setSelectedTrialMed(med)}
+                    color="blue"
+                    uncheckedColor="gray"
                   />
                   <Text style={{ flexWrap: "wrap" }}>
                     <Text style={styles.radioLabel}>
-                      {med.name} ({med.dosage}) -
+                      {med.name}-
                     </Text>
                     <Text>
                       <Text style={styles.radioLabel}> Frequency: </Text>
-                       <Text style={styles.radioValue}>{med.frequency || "Consult your clinician"}
+                      <Text style={styles.radioValue}>
+                        {med.frequency || "Consult your clinician"}
                       </Text>
                       {"\n"}
                       <Text style={styles.radioLabel}>Clinician Notes: </Text>
-                      <Text style={styles.radioValue}>{med.notes || "No notes given"}</Text>
+                      <Text style={styles.radioValue}>
+                        {med.notes || "No notes given"}
+                      </Text>
                     </Text>
                   </Text>
                 </View>
@@ -84,7 +89,7 @@ export const TrialMedicationsSection: React.FC<Props> = ({
                   return (
                     <List.Item
                       key={log.id}
-                      title={`${med?.name || "Unknown"} (${log.dosage})`}
+                      title={`${med?.name || "Unknown"}`}
                       description={`Taken at: ${formatDateTime(log.taken_at)}`}
                       left={() => <List.Icon icon="pill" />}
                     />

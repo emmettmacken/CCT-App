@@ -1,4 +1,4 @@
-import { router, Link } from "expo-router";
+import { Link, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,17 +12,36 @@ import { supabase } from "../../../backend/supabaseClient";
 import { styles } from "../../styles/home.styles";
 
 interface Appointment {
-  id: string;
-  date: string;
+  id?: string;
+  date?: string;
   time: string | null;
   title: string;
   location: string;
   requirements: string[];
 }
 
+interface AppointmentGroup {
+  date: string;
+  appointments: Appointment[];
+}
+
+interface PatientInfo {
+  age: number;
+  height: number;
+  weight: number;
+  trialId: string;
+  consultant: string;
+  trialStartDate: string;
+}
+
 const formatDate = (dateStr: string) => {
   const [year, month, day] = dateStr.split("-");
-  return `${day}-${month}-\n${year}`;
+  return `${day}-${month}-${year}`;
+};
+
+const formatDate1 = (dateStr: string) => {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}-${month} -${year}`;
 };
 
 const formatTime = (timeStr: string | null) => {
@@ -34,86 +53,113 @@ const formatTime = (timeStr: string | null) => {
   return `${hour12}:${minute} ${ampm}`;
 };
 
-// Constants for trial
-const CYCLE_LENGTH = 42; // days
-const NUM_CYCLES = 4;
-
 export default function HomeScreen() {
   const [user, setUser] = useState<any>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [trialProgress, setTrialProgress] = useState(0);
   const [trialPhase, setTrialPhase] = useState("Cycle 1");
-
-  const trialStartDate = new Date("2025-08-01");
-
-  const updateTrialProgress = () => {
-    const today = new Date();
-    const diffTime = today.getTime() - trialStartDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    const totalDays = CYCLE_LENGTH * NUM_CYCLES;
-    const progress = Math.min((diffDays / totalDays) * 100, 100);
-
-    const currentCycle = Math.min(
-      Math.floor(diffDays / CYCLE_LENGTH) + 1,
-      NUM_CYCLES
-    );
-
-    setTrialProgress(progress);
-    setTrialPhase(`Cycle ${currentCycle}`);
-  };
+  const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
 
   useEffect(() => {
     const fetchSession = async () => {
       const { data } = await supabase.auth.getSession();
-
       if (!data.session) {
         router.replace("/(auth)/login");
-      } else {
-        const userId = data.session.user.id;
-
-        const { data: userData, error: userError } = await supabase
-          .from("profiles")
-          .select("id, name, email")
-          .eq("id", userId)
-          .single();
-
-        if (userError) setUser({ name: data.session.user.email });
-        else setUser(userData);
-
-        fetchAppointments(userId);
-        updateTrialProgress();
+        return;
       }
+
+      const userId = data.session.user.id;
+
+      // Fetch user profile
+      const { data: userData, error: userError } = await supabase
+        .from("profiles")
+        .select("id, name, age, height, weight, trial_id, consultant")
+        .eq("id", userId)
+        .single();
+
+      if (userError) setUser({ name: data.session.user.email });
+      else setUser(userData);
+
+      // Fetch patient trial and trial details
+      const { data: patientTrial } = await supabase
+        .from("patient_trials")
+        .select(
+          `
+          start_date,
+          trial_phase,
+          trial:trials(number_of_cycles, cycle_duration_days, name)
+        `
+        )
+        .eq("patient_id", userId)
+        .single();
+
+      // Set patient info
+      setPatientInfo({
+        age: userData?.age || 0,
+        height: userData?.height || 0,
+        weight: userData?.weight || 0,
+        trialId: userData?.trial_id || "",
+        consultant: userData?.consultant || "",
+        trialStartDate: patientTrial?.start_date || "Start date unavailable",
+      });
+
+      // Calculate trial progress
+      if (patientTrial && patientTrial.trial) {
+        const startDate = new Date(patientTrial.start_date);
+        const trialDetails = Array.isArray(patientTrial.trial)
+          ? patientTrial.trial[0]
+          : patientTrial.trial;
+        const numCycles = trialDetails.number_of_cycles;
+        const cycleLength = trialDetails.cycle_duration_days;
+        const today = new Date();
+        const diffDays = Math.floor(
+          (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const totalDays = numCycles * cycleLength;
+        const progress = Math.min(
+          Math.max((diffDays / totalDays) * 100, 0),
+          100
+        );
+        const currentCycle = Math.min(
+          Math.floor(diffDays / cycleLength) + 1,
+          numCycles
+        );
+
+        setTrialProgress(progress);
+        setTrialPhase(patientTrial.trial_phase || `Cycle ${currentCycle}`);
+      }
+
+      fetchAppointments(userId);
     };
 
     const fetchAppointments = async (userId: string) => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("user_id", userId)
-        .order("date", { ascending: true })
-        .order("time", { ascending: true });
 
-      if (error) {
+      const { data, error } = await supabase.rpc("get_grouped_appointments", {
+        uid: userId,
+      });
+
+      if (!data || error) {
         setAppointments([]);
-      } else if (data) {
+      } else {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const upcoming = data.filter((appt: any) => {
-          if (!appt.date) return false;
+        const upcoming = (data as AppointmentGroup[])
+          .map((group) => ({
+            date: group.date,
+            appointments: group.appointments || [],
+          }))
+          .filter((group) => {
+            const apptDate = new Date(group.date);
+            apptDate.setHours(0, 0, 0, 0);
+            return apptDate >= today;
+          });
 
-          const apptDate = new Date(appt.date);
-          apptDate.setHours(0, 0, 0, 0);
-
-          return apptDate >= today;
-        });
-
-        // Only keep the first 3 upcoming
-        setAppointments(upcoming.slice(0, 3) as Appointment[]);
+        setAppointments(upcoming.slice(0, 3));
       }
+
       setLoading(false);
     };
 
@@ -129,54 +175,74 @@ export default function HomeScreen() {
       <View style={styles.progressBarContainer}>
         <View style={[styles.progressBar, { width: `${trialProgress}%` }]} />
       </View>
-      <Text style={styles.trialInfo}>{`ISA-RVD Trial • ${trialPhase}`}</Text>
+      <Text style={styles.trialInfo}>{trialPhase}</Text>
     </View>
   );
 
-  const renderAppointmentCard = (appointment: Appointment) => (
-    <TouchableOpacity
-      key={appointment.id}
-      style={styles.appointmentCard}
-      onPress={() =>
-        router.push({
-          pathname: "/calendar",
-          params: {
-            id: appointment.id,
-            date: appointment.date,
-            time: appointment.time ?? "",
-          },
-        })
-      }
-    >
-      <View style={styles.appointmentDateContainer}>
-        <Text style={styles.appointmentDate}>{formatDate(appointment.date)}</Text>
-        {appointment.time && (
-          <Text style={styles.appointmentTime}>
-            {formatTime(appointment.time)}
-          </Text>
-        )}
-      </View>
-      <View style={styles.appointmentDivider} />
-      <View style={styles.appointmentDetails}>
-        <Text style={styles.appointmentTitle}>{appointment.title}</Text>
-        <Text style={styles.appointmentLocation}>{appointment.location}</Text>
-        {appointment.requirements.map((req: string, index: number) => (
-          <Text key={index} style={styles.appointmentRequirement}>
-            • {req}
-          </Text>
-        ))}
-      </View>
-    </TouchableOpacity>
-  );
+  const renderAppointmentCard = (group: AppointmentGroup) => {
+    const titles = group.appointments.map((appt) => appt.title).join(", ");
+    const requirements = group.appointments.flatMap(
+      (appt) => appt.requirements || []
+    );
+
+    // Collect all times for that date
+    const times = group.appointments
+      .filter((appt) => appt.time)
+      .map((appt) => formatTime(appt.time))
+      .join(", ");
+
+    return (
+      <TouchableOpacity
+        key={group.date}
+        style={styles.appointmentCard}
+        onPress={() =>
+          router.push({
+            pathname: "/calendar",
+            params: { date: group.date },
+          })
+        }
+      >
+        <View style={styles.appointmentDateContainer}>
+          <Text style={styles.appointmentDate}>{formatDate1(group.date)}</Text>
+          {times !== "" && <Text style={styles.appointmentTime}>{times}</Text>}
+        </View>
+        <View style={styles.appointmentDivider} />
+        <View style={styles.appointmentDetails}>
+          {/* Titles */}
+          <Text style={styles.appointmentTitle}>{titles}</Text>
+
+          {/* Location */}
+          {group.appointments[0]?.location && (
+            <Text style={styles.appointmentLocation}>
+              {group.appointments[0].location}
+            </Text>
+          )}
+
+          {/* Requirements */}
+          {requirements.map((req, index) => (
+            <Text key={index} style={styles.appointmentRequirement}>
+              • {req}
+            </Text>
+          ))}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading)
     return (
-      <ActivityIndicator size="large" style={{ flex: 1, justifyContent: "center" }} />
+      <ActivityIndicator
+        size="large"
+        style={{ flex: 1, justifyContent: "center" }}
+      />
     );
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Welcome back,</Text>
@@ -194,7 +260,36 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {renderProgressBar()}
+        {/* Patient Information Card */}
+        {patientInfo && (
+          <View style={styles.patientCard}>
+            <Text style={styles.patientCardTitle}>Patient Information</Text>
+            <View style={styles.patientInfoRow}>
+              <Text style={styles.infoText}>Age: {patientInfo.age}</Text>
+              <Text style={styles.infoText}>
+                Height: {patientInfo.height} cm
+              </Text>
+            </View>
+            <View style={styles.patientInfoRow}>
+              <Text style={styles.infoText}>
+                Weight: {patientInfo.weight} kg
+              </Text>
+              <Text style={styles.infoText}>
+                Trial ID: {patientInfo.trialId}
+              </Text>
+            </View>
+            <View style={styles.patientInfoRow}>
+              <Text style={styles.infoText}>
+                Consultant: {patientInfo.consultant}
+              </Text>
+              <Text style={styles.infoText}>
+                Trial Start: {formatDate(patientInfo.trialStartDate)}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {trialPhase.toLowerCase().includes("induction") && renderProgressBar()}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Upcoming Appointments</Text>

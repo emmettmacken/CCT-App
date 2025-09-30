@@ -27,9 +27,6 @@ type ListPatient = {
   trial_progress: number | null;
 };
 
-const TRIAL_FILTERS = ["All", "ISA", "ASCENT", "Unassigned"] as const;
-type TrialFilter = (typeof TRIAL_FILTERS)[number];
-
 const getAppointmentDateTime = (appt: any) => {
   if (appt.time) {
     return parseISO(`${appt.date}T${appt.time}`);
@@ -231,6 +228,12 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
   );
 };
 
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${day}-${month}-${year}`;
+};
+
 const PatientProfileScreen = ({
   patientId,
   onClose,
@@ -259,6 +262,7 @@ const PatientProfileScreen = ({
   const [editMedDosage, setEditMedDosage] = useState("");
   const [editMedFrequency, setEditMedFrequency] = useState("");
   const [editMedNotes, setEditMedNotes] = useState("");
+  const [editScheduledDate, setEditScheduledDate] = useState("");
 
   // use a reusable fetch so we can call after assignment
   const fetchPatientData = async () => {
@@ -283,7 +287,7 @@ const PatientProfileScreen = ({
         .from("trial_medications")
         .select("*")
         .eq("user_id", patientId)
-        .order("name", { ascending: true });
+        .order("scheduled_date", { ascending: true });
 
       setPatient(patientData);
       setAppointments(appointmentsData || []);
@@ -313,6 +317,38 @@ const PatientProfileScreen = ({
     };
     fetchTrials();
   }, []);
+
+  const deleteEditMedication = async () => {
+    if (!editingMedication) return;
+
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this medication?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // delete from Supabase
+            const { error } = await supabase
+              .from("trial_medications")
+              .delete()
+              .eq("id", editingMedication.id);
+
+            if (error) {
+              alert("Failed to delete medication: " + error.message);
+            } else {
+              alert("Medication deleted successfully!");
+              setShowEditMedModal(false);
+              setEditingMedication(null);
+              await fetchPatientData();
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleAssignTrial = async () => {
     if (!selectedTrial || !patient) return;
@@ -477,11 +513,6 @@ const PatientProfileScreen = ({
                       "Warning",
                       "Assigned trial but could not create appointments."
                     );
-                  } else {
-                    console.log(
-                      "Inserted appointments:",
-                      appointmentsToInsert.length
-                    );
                   }
                 } else {
                   console.log(
@@ -510,10 +541,6 @@ const PatientProfileScreen = ({
                 }
 
                 const cycleDurationDays = trialRow.cycle_duration_days;
-                console.log(
-                  "Fetched cycleDurationDays from trials table:",
-                  cycleDurationDays
-                );
 
                 // 3b) Fetch medication templates
                 const { data: medsTemplate, error: medsTemplateError } =
@@ -539,11 +566,6 @@ const PatientProfileScreen = ({
                   return;
                 }
 
-                console.log(
-                  "Fetched medication templates:",
-                  JSON.stringify(medsTemplate)
-                );
-
                 const medsToInsert: any[] = [];
 
                 // 3c) Process each template
@@ -562,14 +584,6 @@ const PatientProfileScreen = ({
                   const uniqueCycles = [...new Set(rawApplicableCycles)];
                   const uniqueDays = [...new Set(rawScheduledDays)];
 
-                  console.log("Processing medication template:", {
-                    drug_name: m.drug_name,
-                    rawApplicableCycles,
-                    rawScheduledDays,
-                    uniqueCycles,
-                    uniqueDays,
-                  });
-
                   uniqueCycles.forEach((cycle: number) => {
                     uniqueDays.forEach((dayNum: number) => {
                       const cycleOffset = (cycle - 1) * cycleDurationDays;
@@ -577,15 +591,6 @@ const PatientProfileScreen = ({
                       const totalOffset = cycleOffset + dayOffset;
 
                       const medDate = addDays(startDate, totalOffset);
-
-                      console.log(`→ Creating med row for ${m.drug_name}:`, {
-                        cycle,
-                        cycleOffset,
-                        dayNum,
-                        dayOffset,
-                        totalOffset,
-                        medDate: medDate.toISOString().split("T")[0],
-                      });
 
                       medsToInsert.push({
                         user_id: patient.id,
@@ -602,8 +607,6 @@ const PatientProfileScreen = ({
                 });
 
                 if (medsToInsert.length > 0) {
-                  console.log("Final medsToInsert:", medsToInsert);
-
                   const { error: insertMedsError } = await supabase
                     .from("trial_medications")
                     .insert(medsToInsert);
@@ -617,8 +620,6 @@ const PatientProfileScreen = ({
                       "Warning",
                       "Assigned trial but could not create medications."
                     );
-                  } else {
-                    console.log("Inserted medications:", medsToInsert.length);
                   }
                 } else {
                   console.log("No medication rows to insert.");
@@ -674,6 +675,7 @@ const PatientProfileScreen = ({
     setEditMedDosage(med.dosage ?? "");
     setEditMedFrequency(med.frequency ?? "");
     setEditMedNotes(med.notes ?? "");
+    setEditScheduledDate(med.scheduled_date ?? "");
     setShowEditMedModal(true);
   };
 
@@ -687,6 +689,7 @@ const PatientProfileScreen = ({
         dosage: editMedDosage,
         frequency: editMedFrequency,
         notes: editMedNotes,
+        scheduled_date: editScheduledDate,
       })
       .eq("id", editingMedication.id);
 
@@ -804,7 +807,11 @@ const PatientProfileScreen = ({
                       title={med.name}
                       description={`${med.dosage ?? ""} - ${
                         med.frequency ?? ""
-                      }`}
+                      }${
+                        med.scheduled_date
+                          ? ` | Scheduled: ${formatDate(med.scheduled_date)}`
+                          : ""
+                      }${med.notes ? ` | Notes: ${med.notes}` : ""}`}
                       left={() => <List.Icon icon="pill" />}
                       right={() => (
                         <TouchableOpacity
@@ -920,14 +927,28 @@ const PatientProfileScreen = ({
               multiline
               style={{ marginBottom: 10 }}
             />
+            <TextInput
+              label="Scheduled Date"
+              value={editScheduledDate}
+              onChangeText={setEditScheduledDate}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
 
             <View style={styles.buttonRow}>
               <Button
+                mode="contained"
+                onPress={deleteEditMedication}
+                style={styles.deleteButton}
+              >
+                Delete
+              </Button>
+              <Button
                 mode="outlined"
                 onPress={() => setShowEditMedModal(false)}
-                style={styles.cancelButton}
+                style={styles.closeButton}
               >
-                Cancel
+                Close
               </Button>
               <Button
                 mode="contained"

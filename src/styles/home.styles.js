@@ -162,4 +162,26 @@ export const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 2,
   },
+  patientCard: {
+    backgroundColor: "#f2f2f2",
+    padding: 16,
+    borderRadius: 12,
+    marginVertical: 16,
+  },
+  patientCardTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    marginBottom: 12,
+  },
+  patientInfoRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 16,
+    marginRight: 12,
+    marginBottom: 4,
+  },
 });

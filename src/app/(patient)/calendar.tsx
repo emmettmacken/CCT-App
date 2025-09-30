@@ -1,11 +1,12 @@
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { SafeAreaView, Text } from "react-native";
+import { SafeAreaView, Text, Alert } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { supabase } from "../../../backend/supabaseClient";
 import AppointmentModal from "../../components/AppointmentModal";
 import { styles } from "../../styles/appointments.styles";
 import { Appointment } from "../../types/appointments";
-import { useLocalSearchParams } from "expo-router";
+import * as Linking from "expo-linking";
 
 const CalendarScreen = () => {
   const [appointments, setAppointments] = useState<Record<string, any>>({});
@@ -15,26 +16,29 @@ const CalendarScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const { id, date } = useLocalSearchParams<{ id?: string; date?: string }>();
+  const { date } = useLocalSearchParams<{ date?: string }>();
 
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         const { data, error } = await supabase.from("appointments").select("*");
-
         if (error) {
-          console.error("Error fetching appointments:", error);
+          console.error("[CalendarScreen] Supabase error:", error);
           return;
         }
 
-        if (data) {
-          const now = new Date();
+        const now = new Date();
 
-          const formattedAppointments = data.reduce(
-            (acc: Record<string, any>, appt: any) => {
-              const dateTime = `${appt.date}T${appt.time}`;
-              const isPast = dateTime < now.toISOString();
+        const formattedAppointments = data?.reduce(
+          (acc: Record<string, any>, appt: any) => {
+            if (!appt.date) return acc;
 
+            const apptDateObj = appt.time
+              ? new Date(`${appt.date}T${appt.time}`)
+              : new Date(appt.date);
+            const isPast = apptDateObj < now;
+
+            if (!acc[appt.date]) {
               acc[appt.date] = {
                 customStyles: {
                   container: {
@@ -45,41 +49,70 @@ const CalendarScreen = () => {
                     justifyContent: "center",
                     alignItems: "center",
                   },
-                  text: { color: "#ffffff" },
+                  text: { color: "#fff" },
                 },
                 appointmentData: {
-                  ...appt,
-                  dateTime,
+                  title: "",
+                  time: "",
+                  location: appt.location || "",
+                  date: appt.date,
+                  patientName: "",
+                  requirements: [] as string[],
                 },
+                marked: true,
               };
-              return acc;
-            },
-            {}
-          );
+            }
 
-          setAppointments(formattedAppointments);
+            const apptData = acc[appt.date].appointmentData;
 
-          if (date && formattedAppointments[date]) {
-            setSelectedDate(date);
-            setSelectedAppointment(formattedAppointments[date].appointmentData);
-            setModalVisible(true);
-          }
+            // Concatenate titles and times
+            apptData.title += (apptData.title ? ", " : "") + appt.title;
+            apptData.time += (apptData.time ? ", " : "") + (appt.time || "");
+            apptData.patientName +=
+              (apptData.patientName ? ", " : "") +
+              (appt.profiles?.name || "Unknown");
+
+            // Location only once per date
+            apptData.location = apptData.location || appt.location || "";
+
+            // Join all requirements
+            if (appt.requirements && Array.isArray(appt.requirements)) {
+              apptData.requirements = apptData.requirements
+                ? [...apptData.requirements, ...appt.requirements]
+                : [...appt.requirements];
+            }
+
+            return acc;
+          },
+          {}
+        );
+
+        setAppointments(formattedAppointments);
+
+        if (date && formattedAppointments[date]) {
+          setSelectedDate(date);
+          setSelectedAppointment(formattedAppointments[date].appointmentData);
+          setModalVisible(true);
         }
       } catch (err) {
-        console.error("Unexpected error:", err);
+        console.error("fetchAppointments error:", err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchAppointments();
-  }, [date, id]);
+  }, [date]);
 
   const handleDayPress = (day: { dateString: string }) => {
     setSelectedDate(day.dateString);
-    const appointmentEntry = appointments[day.dateString];
-    if (appointmentEntry?.appointmentData) {
-      setSelectedAppointment(appointmentEntry.appointmentData);
+    const entry = appointments[day.dateString];
+    if (entry?.appointmentData) {
+      setSelectedAppointment(entry.appointmentData);
       setModalVisible(true);
+    } else {
+      setSelectedAppointment(null);
+      setModalVisible(false);
     }
   };
 
@@ -97,7 +130,22 @@ const CalendarScreen = () => {
       <Text style={styles.subtitle}>Tap on a date to view details</Text>
       <Text style={styles.attendance}>
         If you cannot attend your scheduled appointment, please contact Clinical
-        Trials Office at 087 382 4221 at your earliest convenience
+        Trials Office at <Text style={styles.contactDetail}>
+          <Text
+            style={{ color: "blue", textDecorationLine: "underline" }}
+            onPress={() =>
+              Alert.alert("Call", "Do you want to ring (087) 382 4221?", [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Ring",
+                  onPress: () => Linking.openURL("tel:0871234567"),
+                },
+              ])
+            }
+          >
+          (087) 382 4221
+          </Text>
+        </Text>
       </Text>
       <Calendar
         current={date || new Date().toISOString().split("T")[0]}
@@ -132,7 +180,10 @@ const CalendarScreen = () => {
 
       <AppointmentModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedAppointment(null);
+        }}
         appointment={selectedAppointment}
       />
     </SafeAreaView>

@@ -26,7 +26,7 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
               <List.Item
                 key={appt.id}
                 title={appt.profiles?.name || 'Unknown Patient'}
-                description={`${appt.title} at ${appt.time}`}
+                description={`${appt.title}${appt.time ? ` at ${appt.time}` : ''}`}
                 left={() => (
                   <View style={[
                     styles.statusIndicator,

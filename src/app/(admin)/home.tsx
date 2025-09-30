@@ -12,6 +12,7 @@ import {
   Card,
   RadioButton,
   IconButton,
+  Switch,
 } from 'react-native-paper';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { supabase } from '../../../backend/supabaseClient';
@@ -46,6 +47,12 @@ const AdminTrialTemplateScreen: React.FC = () => {
   // Drafts
   const [assessmentDraft, setAssessmentDraft] = useState<Partial<Assessment>>({});
   const [medDraft, setMedDraft] = useState<Partial<TrialMedication>>({});
+
+  // Optional medication toggle + category
+  const [isOptional, setIsOptional] = useState(false);
+  const [optionalCategory, setOptionalCategory] = useState<string | null>(null);
+  const [otherCategoryText, setOtherCategoryText] = useState('');
+  const [openOptionalCategoryDropdown, setOpenOptionalCategoryDropdown] = useState(false);
 
   const [saving, setSaving] = useState(false);
 
@@ -100,10 +107,13 @@ const AdminTrialTemplateScreen: React.FC = () => {
       drugName: '',
       dosage: '',
       frequency: '',
-      administrationPattern: [],
+      scheduled_days: [],
       applicableCycles: [],
       specialConditions: '',
     });
+    setIsOptional(false);
+    setOptionalCategory(null);
+    setOtherCategoryText('');
   };
 
   const saveMedDraft = () => {
@@ -112,12 +122,28 @@ const AdminTrialTemplateScreen: React.FC = () => {
       Alert.alert('Validation', 'Drug name required');
       return;
     }
+    if (isOptional) {
+      const categoryToSave = optionalCategory === 'other' ? otherCategoryText.trim() : optionalCategory;
+      if (!categoryToSave) {
+        Alert.alert('Validation', 'Please select or specify a patient category for optional medication.');
+        return;
+      }
+      draft.isOptional = true;
+      draft.optionalCategory = categoryToSave;
+    } else {
+      draft.isOptional = false;
+      draft.optionalCategory = null;
+    }
+
     if (medications.some((m) => m.id === draft.id)) {
       setMedications((prev) => prev.map((m) => (m.id === draft.id ? draft : m)));
     } else {
       setMedications((prev) => [draft, ...prev]);
     }
     setMedDraft({});
+    setIsOptional(false);
+    setOptionalCategory(null);
+    setOtherCategoryText('');
   };
 
   const removeMedication = (id: string) => setMedications((m) => m.filter((x) => x.id !== id));
@@ -133,6 +159,9 @@ const AdminTrialTemplateScreen: React.FC = () => {
     setMedications([]);
     setAssessmentDraft({});
     setMedDraft({});
+    setIsOptional(false);
+    setOptionalCategory(null);
+    setOtherCategoryText('');
   };
 
   // Save template to Supabase
@@ -184,17 +213,37 @@ const AdminTrialTemplateScreen: React.FC = () => {
 
       // Insert medications
       if (medications.length > 0) {
-        const medsPayload = medications.map((m) => ({
-          trial_id: trialId,
-          drug_name: m.drugName,
-          dosage: m.dosage || null,
-          frequency: m.frequency || null,
-          administration_pattern: m.administrationPattern,
-          applicable_cycles: m.applicableCycles,
-          special_conditions: m.specialConditions || null,
-        }));
-        const { error: medsError } = await supabase.from('trial_medications_template').insert(medsPayload);
-        if (medsError) throw medsError;
+        const normalMeds = medications.filter((m) => !m.isOptional);
+        const optionalMeds = medications.filter((m) => m.isOptional);
+
+        if (normalMeds.length > 0) {
+          const medsPayload = normalMeds.map((m) => ({
+            trial_id: trialId,
+            drug_name: m.drugName,
+            dosage: m.dosage || null,
+            frequency: m.frequency || null,
+            scheduled_days: m.scheduled_days.map((d) => parseInt(d.replace('d', ''), 10)),
+            applicable_cycles: m.applicableCycles,
+            special_conditions: m.specialConditions || null,
+          }));
+          const { error: medsError } = await supabase.from('trial_medications_template').insert(medsPayload);
+          if (medsError) throw medsError;
+        }
+
+        if (optionalMeds.length > 0) {
+          const optPayload = optionalMeds.map((m) => ({
+            trial_id: trialId,
+            drug_name: m.drugName,
+            dosage: m.dosage || null,
+            frequency: m.frequency || null,
+            scheduled_days: m.scheduled_days.map((d) => parseInt(d.replace('d', ''), 10)),
+            applicable_cycles: m.applicableCycles,
+            special_conditions: m.specialConditions || null,
+            category: m.optionalCategory,
+          }));
+          const { error: optError } = await supabase.from('trial_optional_medications').insert(optPayload);
+          if (optError) throw optError;
+        }
       }
 
       Alert.alert('Success', 'Trial template created successfully.');
@@ -332,10 +381,10 @@ const AdminTrialTemplateScreen: React.FC = () => {
                 <DropDownPicker
                   multiple={true}
                   open={openDayDropdown}
-                  value={medDraft.administrationPattern || []}
+                  value={medDraft.scheduled_days || []}
                   items={dayItems}
                   setOpen={setOpenDayDropdown}
-                  setValue={(callback) => setMedDraft((d) => ({ ...(d as TrialMedication), administrationPattern: callback(d?.administrationPattern || []) }))}
+                  setValue={(callback) => setMedDraft((d) => ({ ...(d as TrialMedication), scheduled_days: callback(d?.scheduled_days || []) }))}
                   placeholder="Select Administration Days"
                   mode="BADGE"
                   style={{ marginBottom: 8 }}
@@ -364,6 +413,43 @@ const AdminTrialTemplateScreen: React.FC = () => {
 
                 <TextInput label="Special Conditions" value={medDraft.specialConditions || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), specialConditions: t || null }))} mode="outlined" style={styles.input} />
 
+                {/* Optional Medication Toggle */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text>Optional Medication for specific patients</Text>
+                  <Switch value={isOptional} onValueChange={setIsOptional} style={{ marginLeft: 12 }} />
+                </View>
+                {isOptional && (
+                  <>
+                    <DropDownPicker
+                      open={openOptionalCategoryDropdown}
+                      value={optionalCategory}
+                      items={[
+                        { label: '70+ only', value: '70+' },
+                        { label: 'High-risk', value: 'high-risk' },
+                        { label: 'Both 70+ and High-risk only', value: 'both 70+ and high-risk' },
+                        { label: 'Other', value: 'other' },
+                      ]}
+                      setOpen={setOpenOptionalCategoryDropdown}
+                      setValue={setOptionalCategory}
+                      placeholder="Select Category"
+                      style={{ marginBottom: 8 }}
+                      listMode="MODAL"
+                      modalProps={{
+                        animationType: "slide",
+                      }}
+                    />
+                    {optionalCategory === 'other' && (
+                      <TextInput
+                        label="Specify Category"
+                        value={otherCategoryText}
+                        onChangeText={setOtherCategoryText}
+                        mode="outlined"
+                        style={{ marginBottom: 8 }}
+                      />
+                    )}
+                  </>
+                )}
+
                 <View style={{ flexDirection: 'row', marginTop: 8 }}>
                   <Button mode="outlined" onPress={() => setMedDraft({})} style={{ flex: 1 }}>Cancel</Button>
                   <Button mode="contained" onPress={saveMedDraft} style={{ flex: 1, marginLeft: 8 }}>Save Drug</Button>
@@ -378,18 +464,23 @@ const AdminTrialTemplateScreen: React.FC = () => {
                     <Text>{m.drugName}</Text>
                     <IconButton icon="delete" size={20} onPress={() => removeMedication(m.id)} />
                   </View>
-                  {m.dosage && <Text>Dosage: {m.dosage}</Text>}
-                  {m.frequency && <Text>Frequency: {m.frequency}</Text>}
-                  <Text>Pattern: {m.administrationPattern.join(', ')}</Text>
+                  <Text>Dosage: {m.dosage}</Text>
+                  <Text>Frequency: {m.frequency}</Text>
+                  <Text>Days: {m.scheduled_days.join(', ')}</Text>
                   {m.applicableCycles && <Text>Cycles: {m.applicableCycles.join(', ')}</Text>}
                   {m.specialConditions && <Text>Conditions: {m.specialConditions}</Text>}
+                  {m.isOptional && <Text>Optional: {m.optionalCategory}</Text>}
+                  
                 </Card.Content>
               </Card>
-            )) : <Text>No drug regimens added</Text>}
+            )) : <Text>No medications added</Text>}
           </Card.Content>
         </Card>
 
-        <Button mode="contained" onPress={saveTemplate} loading={saving} style={{ marginVertical: 12 }}>Save Template</Button>
+        {/* Save Template */}
+        <Button mode="contained" onPress={saveTemplate} disabled={saving} style={{ marginVertical: 16 }}>
+          {saving ? 'Saving...' : 'Save Trial Template'}
+        </Button>
       </ScrollView>
     </SafeAreaView>
   );

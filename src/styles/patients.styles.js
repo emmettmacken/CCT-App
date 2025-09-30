@@ -207,14 +207,24 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
   },
+  closeButton: {
+    flex: 1,
+    marginRight: 10,
+    borderColor: '#3f51b5',
+  },
   cancelButton: {
     flex: 1,
     marginRight: 10,
     borderColor: '#3f51b5',
   },
+  deleteButton: {
+    flex: 1,
+    marginRight: 10,
+    backgroundColor: '#ba332cff',
+  },
   submitButton: {
     flex: 1,
-    backgroundColor: '#3f51b5',
+    backgroundColor: '#47b53fff',
   },
   trialOption: {
   paddingVertical: 14,

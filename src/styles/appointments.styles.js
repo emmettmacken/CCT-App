@@ -107,4 +107,9 @@ export const styles = StyleSheet.create({
     marginLeft: 10,
     textAlign: 'right',
   },
+  contactDetail: {
+    marginLeft: 8,
+    marginBottom: 4,
+    color: '#333',
+  },
 });

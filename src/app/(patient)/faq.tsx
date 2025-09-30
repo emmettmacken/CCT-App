@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, Alert } from 'react-native';
 import { List } from 'react-native-paper';
 import { styles } from '../../styles/faq.styles';
 import { supabase } from '../../../backend/supabaseClient';
