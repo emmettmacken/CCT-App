@@ -258,11 +258,22 @@ const PatientProfileScreen = ({
   const [editingMedication, setEditingMedication] = useState<Medication | null>(
     null
   );
+
   const [editMedName, setEditMedName] = useState("");
-  const [editMedDosage, setEditMedDosage] = useState("");
   const [editMedFrequency, setEditMedFrequency] = useState("");
   const [editMedNotes, setEditMedNotes] = useState("");
   const [editScheduledDate, setEditScheduledDate] = useState("");
+
+  // edit appointment modal
+  const [showEditApptModal, setShowEditApptModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] =
+    useState<Appointment | null>(null);
+  const [editApptDate, setEditApptDate] = useState("");
+  const [editApptTime, setEditApptTime] = useState("");
+  const [editApptTitle, setEditApptTitle] = useState("");
+  const [editApptCategory, setEditApptCategory] = useState("");
+  const [editApptLocation, setEditApptLocation] = useState("");
+  const [editApptRequirements, setEditApptRequirements] = useState("");
 
   // use a reusable fetch so we can call after assignment
   const fetchPatientData = async () => {
@@ -595,7 +606,6 @@ const PatientProfileScreen = ({
                       medsToInsert.push({
                         user_id: patient.id,
                         name: m.drug_name,
-                        dosage: m.dosage,
                         frequency: m.frequency,
                         scheduled_date: medDate.toISOString().split("T")[0],
                         created_at: new Date().toISOString(),
@@ -672,7 +682,6 @@ const PatientProfileScreen = ({
   const handleEditMedication = (med: Medication) => {
     setEditingMedication(med);
     setEditMedName(med.name);
-    setEditMedDosage(med.dosage ?? "");
     setEditMedFrequency(med.frequency ?? "");
     setEditMedNotes(med.notes ?? "");
     setEditScheduledDate(med.scheduled_date ?? "");
@@ -686,7 +695,6 @@ const PatientProfileScreen = ({
       .from("trial_medications")
       .update({
         name: editMedName,
-        dosage: editMedDosage,
         frequency: editMedFrequency,
         notes: editMedNotes,
         scheduled_date: editScheduledDate,
@@ -702,6 +710,84 @@ const PatientProfileScreen = ({
       setEditingMedication(null);
       await fetchPatientData();
     }
+  };
+
+  const handleEditAppointment = (appt: Appointment) => {
+    setEditingAppointment(appt);
+    setEditApptDate(appt.date ?? "");
+    setEditApptTime(appt.time ?? "");
+    setEditApptTitle(appt.title ?? "");
+    setEditApptCategory(appt.category ?? "");
+    setEditApptLocation(appt.location ?? "");
+    // requirements may be array or string; normalize to comma-separated string
+    const reqs = Array.isArray(appt.requirements)
+      ? appt.requirements.join(", ")
+      : appt.requirements ?? "";
+    setEditApptRequirements(reqs);
+    setShowEditApptModal(true);
+  };
+
+  const submitEditAppointment = async () => {
+    if (!editingAppointment) return;
+
+    // normalize requirements back to array if comma separated
+    const reqArray =
+      editApptRequirements && editApptRequirements.trim() !== ""
+        ? editApptRequirements.split(",").map((r) => r.trim())
+        : null;
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        date: editApptDate,
+        time: editApptTime === "" ? null : editApptTime,
+        title: editApptTitle,
+        category: editApptCategory,
+        location: editApptLocation,
+        requirements: reqArray,
+      })
+      .eq("id", editingAppointment.id);
+
+    if (error) {
+      Alert.alert("Error", "Failed to update appointment.");
+      console.error(error);
+    } else {
+      Alert.alert("Success", "Appointment updated.");
+      setShowEditApptModal(false);
+      setEditingAppointment(null);
+      await fetchPatientData();
+    }
+  };
+
+  const deleteEditAppointment = async () => {
+    if (!editingAppointment) return;
+
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this appointment?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase
+              .from("appointments")
+              .delete()
+              .eq("id", editingAppointment.id);
+
+            if (error) {
+              alert("Failed to delete appointment: " + error.message);
+            } else {
+              alert("Appointment deleted successfully!");
+              setShowEditApptModal(false);
+              setEditingAppointment(null);
+              await fetchPatientData();
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading || !patient) {
@@ -778,15 +864,47 @@ const PatientProfileScreen = ({
             <Card.Content>
               {appointments.length > 0 ? (
                 <List.Section>
-                  {appointments.map((appt) => (
-                    <List.Item
-                      key={appt.id}
-                      title={format(
+                  {Object.entries(
+                    appointments.reduce((groups, appt) => {
+                      const dateKey = format(
                         getAppointmentDateTime(appt),
-                        appt.time ? "PPPPp" : "PPPP"
-                      )}
-                      description={`${appt.title} - ${appt.category} - ${appt.location}`}
-                    />
+                        "PPPP" // e.g., "Thursday, October 3, 2025"
+                      );
+                      if (!groups[dateKey]) groups[dateKey] = [];
+                      groups[dateKey].push(appt);
+                      return groups;
+                    }, {})
+                  ).map(([date, appts]) => (
+                    <View key={date} style={{ marginBottom: 15 }}>
+                      <Text
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: 16,
+                          marginBottom: 5,
+                        }}
+                      >
+                        {date}
+                      </Text>
+
+                      {appts.map((appt) => (
+                        <List.Item
+                          key={appt.id}
+                          title={
+                            appt.time
+                              ? format(getAppointmentDateTime(appt), "p")
+                              : appt.title
+                          }
+                          description={`${appt.title} - ${appt.category} - ${appt.location}`}
+                          right={() => (
+                            <TouchableOpacity
+                              onPress={() => handleEditAppointment(appt)}
+                            >
+                              <List.Icon icon="pencil" />
+                            </TouchableOpacity>
+                          )}
+                        />
+                      ))}
+                    </View>
                   ))}
                 </List.Section>
               ) : (
@@ -805,9 +923,7 @@ const PatientProfileScreen = ({
                     <List.Item
                       key={med.id}
                       title={med.name}
-                      description={`${med.dosage ?? ""} - ${
-                        med.frequency ?? ""
-                      }${
+                      description={`${med.frequency ?? ""}${
                         med.scheduled_date
                           ? ` | Scheduled: ${formatDate(med.scheduled_date)}`
                           : ""
@@ -906,13 +1022,6 @@ const PatientProfileScreen = ({
               style={{ marginBottom: 10 }}
             />
             <TextInput
-              label="Dosage"
-              value={editMedDosage}
-              onChangeText={setEditMedDosage}
-              mode="outlined"
-              style={{ marginBottom: 10 }}
-            />
-            <TextInput
               label="Frequency"
               value={editMedFrequency}
               onChangeText={setEditMedFrequency}
@@ -953,6 +1062,93 @@ const PatientProfileScreen = ({
               <Button
                 mode="contained"
                 onPress={submitEditMedication}
+                style={styles.submitButton}
+              >
+                Save
+              </Button>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Edit Appointment Modal */}
+      <Modal
+        visible={showEditApptModal}
+        onRequestClose={() => setShowEditApptModal(false)}
+        animationType="slide"
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Appointment</Text>
+
+            <TextInput
+              label="Title"
+              value={editApptTitle}
+              onChangeText={setEditApptTitle}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
+            <TextInput
+              label="Category"
+              value={editApptCategory}
+              onChangeText={setEditApptCategory}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
+            <TextInput
+              label="Location"
+              value={editApptLocation}
+              onChangeText={setEditApptLocation}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
+            <TextInput
+              label="Date (YYYY-MM-DD)"
+              value={editApptDate}
+              onChangeText={setEditApptDate}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
+            <TextInput
+              label="Time (HH:MM) — leave empty for no time"
+              value={editApptTime}
+              onChangeText={setEditApptTime}
+              mode="outlined"
+              style={{ marginBottom: 10 }}
+            />
+            <TextInput
+              label="Requirements (comma separated)"
+              value={editApptRequirements}
+              onChangeText={setEditApptRequirements}
+              mode="outlined"
+              multiline
+              style={{ marginBottom: 10 }}
+            />
+
+            <View style={styles.buttonRow}>
+              <Button
+                mode="contained"
+                onPress={deleteEditAppointment}
+                style={styles.deleteButton}
+              >
+                Delete
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  setShowEditApptModal(false);
+                  setEditingAppointment(null);
+                }}
+                style={styles.closeButton}
+              >
+                Close
+              </Button>
+              <Button
+                mode="contained"
+                onPress={submitEditAppointment}
                 style={styles.submitButton}
               >
                 Save

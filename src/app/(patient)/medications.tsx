@@ -135,7 +135,8 @@ const MedicationTrackingScreen = () => {
       .from("side_effects")
       .select("*")
       .eq("user_id", userId)
-      .order("start_date", { ascending: false });
+      .order("start_date", { ascending: false })
+      .gte("end_date", today);
 
     if (sideEffectsError)
       console.log("Error fetching side effects:", sideEffectsError.message);
@@ -401,8 +402,7 @@ const MedicationTrackingScreen = () => {
                 </View>
               </>
             )}
-
-            {/* --------- Print Section Below Log Book --------- */}
+            
             <View style={{ marginVertical: 12 }}>
               <TouchableOpacity
                 style={{

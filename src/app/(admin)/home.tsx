@@ -36,8 +36,9 @@ const AdminTrialTemplateScreen: React.FC = () => {
   // Basic trial info
   const [name, setName] = useState('');
   const [protocolVersion, setProtocolVersion] = useState('');
-  const [numberOfCycles, setNumberOfCycles] = useState<string>('4');
-  const [cycleDurationDays, setCycleDurationDays] = useState<string>('42');
+  const [trialPhase, setTrialPhase] = useState('');
+  const [numberOfCycles, setNumberOfCycles] = useState<string>('');
+  const [cycleDurationDays, setCycleDurationDays] = useState<string>('');
   const [notes, setNotes] = useState('');
 
   // Assessments & Medications
@@ -105,7 +106,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
     setMedDraft({
       id: generateId('med-'),
       drugName: '',
-      dosage: '',
       frequency: '',
       scheduled_days: [],
       applicableCycles: [],
@@ -152,8 +152,8 @@ const AdminTrialTemplateScreen: React.FC = () => {
   const resetForm = () => {
     setName('');
     setProtocolVersion('');
-    setNumberOfCycles('4');
-    setCycleDurationDays('42');
+    setNumberOfCycles('');
+    setCycleDurationDays('');
     setNotes('');
     setAssessments([]);
     setMedications([]);
@@ -184,7 +184,7 @@ const AdminTrialTemplateScreen: React.FC = () => {
         .insert([{
           name: name.trim(),
           protocol_version: protocolVersion.trim(),
-          trial_phase: 'Induction',
+          trial_phase: trialPhase,
           number_of_cycles: numCycles,
           cycle_duration_days: cycleDays,
           notes: notes?.trim() || null,
@@ -220,7 +220,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
           const medsPayload = normalMeds.map((m) => ({
             trial_id: trialId,
             drug_name: m.drugName,
-            dosage: m.dosage || null,
             frequency: m.frequency || null,
             scheduled_days: m.scheduled_days.map((d) => parseInt(d.replace('d', ''), 10)),
             applicable_cycles: m.applicableCycles,
@@ -234,7 +233,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
           const optPayload = optionalMeds.map((m) => ({
             trial_id: trialId,
             drug_name: m.drugName,
-            dosage: m.dosage || null,
             frequency: m.frequency || null,
             scheduled_days: m.scheduled_days.map((d) => parseInt(d.replace('d', ''), 10)),
             applicable_cycles: m.applicableCycles,
@@ -267,6 +265,7 @@ const AdminTrialTemplateScreen: React.FC = () => {
           <Card.Content>
             <TextInput label="Trial Name" value={name} onChangeText={setName} mode="outlined" style={styles.input} />
             <TextInput label="Protocol Version" value={protocolVersion} onChangeText={setProtocolVersion} mode="outlined" style={styles.input} />
+            <TextInput label="Phase (eg. Induction, Maintenance, etc.)" value={trialPhase} onChangeText={setTrialPhase} mode="outlined" style={styles.input} />
             <TextInput
               label="Number of Cycles"
               value={numberOfCycles}
@@ -374,7 +373,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
             {medDraft && Object.keys(medDraft).length > 0 && (
               <View style={styles.draftContainer}>
                 <TextInput label="Drug Name" value={medDraft.drugName || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), drugName: t }))} mode="outlined" style={styles.input} />
-                <TextInput label="Dosage" value={medDraft.dosage || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), dosage: t }))} mode="outlined" style={styles.input} />
                 <TextInput label="Frequency" value={medDraft.frequency || ''} onChangeText={(t) => setMedDraft((d) => ({ ...(d as TrialMedication), frequency: t }))} mode="outlined" style={styles.input} />
 
                 <Text style={styles.label}>Administration Pattern</Text>
@@ -464,7 +462,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
                     <Text>{m.drugName}</Text>
                     <IconButton icon="delete" size={20} onPress={() => removeMedication(m.id)} />
                   </View>
-                  <Text>Dosage: {m.dosage}</Text>
                   <Text>Frequency: {m.frequency}</Text>
                   <Text>Days: {m.scheduled_days.join(', ')}</Text>
                   {m.applicableCycles && <Text>Cycles: {m.applicableCycles.join(', ')}</Text>}

@@ -12,32 +12,36 @@ interface Props {
 const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
   const navigation = useNavigation<any>();
 
+  // Group appointments by patient
+  const groupedAppointments = appointments.reduce((acc, appt) => {
+    const patient = appt.patient_name || appt.profiles?.name || "Unknown Patient";
+    if (!acc[patient]) acc[patient] = [];
+    acc[patient].push(appt.title);
+    return acc;
+  }, {} as Record<string, string[]>);
+
   return (
     <Card style={styles.card}>
       <Card.Title
         title="Today's Appointments"
         titleStyle={styles.cardTitle}
-        right={() => <Text style={styles.appointmentCount}>{appointments.length} scheduled</Text>}
+        right={() => (
+          <Text style={styles.appointmentCount}>{appointments.length} scheduled</Text>
+        )}
       />
       <Card.Content>
         {appointments.length > 0 ? (
           <List.Section>
-            {appointments.map(appt => (
+            {Object.entries(groupedAppointments).map(([patient, titles]) => (
               <List.Item
-                key={appt.id}
-                title={appt.profiles?.name || 'Unknown Patient'}
-                description={`${appt.title}${appt.time ? ` at ${appt.time}` : ''}`}
-                left={() => (
-                  <View style={[
-                    styles.statusIndicator,
-                    appt.status === 'completed' && styles.completedStatus,
-                    appt.status === 'cancelled' && styles.cancelledStatus,
-                  ]} />
-                )}
+                key={patient}
+                title={patient}
+                description={titles.join(", ")} // all titles for that patient
+                left={() => <View style={styles.statusIndicator} />}
                 right={() => (
-                  <Button 
-                    mode="outlined" 
-                    onPress={() => navigation.navigate('Appointments', { id: appt.id })}
+                  <Button
+                    mode="outlined"
+                    onPress={() => navigation.navigate("Appointments", { patient })}
                     style={styles.viewButton}
                     labelStyle={styles.viewButtonLabel}
                   >
