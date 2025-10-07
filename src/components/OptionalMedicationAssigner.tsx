@@ -174,6 +174,7 @@ const OptionalMedicationAssigner = ({ patientId }: { patientId: string }) => {
                   <Text style={{ fontWeight: "bold" }}>{med.drug_name}</Text>
                   <Text>Frequency: {med.frequency}</Text>
                   <Text>Conditions: {med.special_conditions || "None"}</Text>
+                  <Text>Category: {med.category || "Error"}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
