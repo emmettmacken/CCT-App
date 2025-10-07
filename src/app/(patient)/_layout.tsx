@@ -68,7 +68,7 @@ export default function TabLayout() {
             name="faq"
             options={{
               tabBarIcon: ({ color }) => (
-                <Ionicons name="help-outline" size={28} color={color} />
+                <Ionicons name="information-circle-outline" size={28} color={color} />
               ),
             }}
           />

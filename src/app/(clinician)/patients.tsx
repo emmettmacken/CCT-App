@@ -1,6 +1,7 @@
 import { format, parseISO } from "date-fns";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
@@ -18,6 +19,9 @@ import {
   Medication,
   Patient,
 } from "../../types/patients";
+import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
+import PatientNotes from "../../components/PatientNotes";
+import OptionalMedicationAssigner from "../../components/OptionalMedicationAssigner";
 
 type ListPatient = {
   id: string;
@@ -44,7 +48,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
   const [patients, setPatients] = useState<ListPatient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<ListPatient[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [trialFilter, setTrialFilter] = useState<TrialFilter>("All");
+  const [trialFilter, setTrialFilter] = useState<string>("All");
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(
@@ -144,9 +148,10 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text>Loading patients...</Text>
-      </SafeAreaView>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Loading patient information...</Text>
+      </View>
     );
   }
 
@@ -185,9 +190,11 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
                 title={patient.name ?? "Unnamed"}
                 description={`Trial: ${
                   patient.trial_name ?? "Unassigned"
-                }  ·  Phase: ${patient.trial_phase ?? "-"}  ·  Progress: ${
-                  patient.trial_progress ?? 0
-                }%`}
+                }  ·  Phase: ${patient.trial_phase ?? "-"}${
+                  patient.trial_phase === "Induction"
+                    ? `  ·  Progress: ${patient.trial_progress ?? 0}%`
+                    : ""
+                }`}
                 left={() => (
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
@@ -247,6 +254,7 @@ const PatientProfileScreen = ({
   const [notes, setNotes] = useState<ClinicianNote[]>([]);
   const [activeTab, setActiveTab] = useState("appointments");
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   // trial assignment UI
   const [trials, setTrials] = useState<any[]>([]);
@@ -275,6 +283,34 @@ const PatientProfileScreen = ({
   const [editApptLocation, setEditApptLocation] = useState("");
   const [editApptRequirements, setEditApptRequirements] = useState("");
 
+  const [showOffsetModal, setShowOffsetModal] = useState(false);
+  const [offsetDays, setOffsetDays] = useState(""); // user input for days
+  const [appointmentsToOffset, setAppointmentsToOffset] = useState<
+    Appointment[]
+  >([]);
+
+  // Mass Edit Medication modal states
+  const [showMassEditMedModal, setShowMassEditMedModal] = useState(false);
+  const [uniqueMeds, setUniqueMeds] = useState<Medication[]>([]);
+  const [selectedMassMedId, setSelectedMassMedId] = useState<string | null>(
+    null
+  );
+  const [selectedField, setSelectedField] = useState<
+    "name" | "frequency" | "notes"
+  >("name");
+  const [currentFieldValue, setCurrentFieldValue] = useState("");
+  const [newFieldValue, setNewFieldValue] = useState("");
+
+  // Mass Edit Appointments state
+  const [showMassEditApptModal, setShowMassEditApptModal] = useState(false);
+  const [selectedMassApptId, setSelectedMassApptId] = useState<string | null>(
+    null
+  );
+  const [selectedApptField, setSelectedApptField] = useState("");
+  const [currentApptFieldValue, setCurrentApptFieldValue] = useState("");
+  const [newApptFieldValue, setNewApptFieldValue] = useState("");
+  const [uniqueAppointments, setUniqueAppointments] = useState<any[]>([]);
+
   // use a reusable fetch so we can call after assignment
   const fetchPatientData = async () => {
     setLoading(true);
@@ -298,6 +334,7 @@ const PatientProfileScreen = ({
         .from("trial_medications")
         .select("*")
         .eq("user_id", patientId)
+        .gte("scheduled_date", new Date().toISOString().split("T")[0])
         .order("scheduled_date", { ascending: true });
 
       setPatient(patientData);
@@ -328,6 +365,20 @@ const PatientProfileScreen = ({
     };
     fetchTrials();
   }, []);
+
+  useEffect(() => {
+    const uniq = Array.from(
+      new Map(medications.map((m) => [m.name, m])).values()
+    );
+    setUniqueMeds(uniq);
+  }, [medications]);
+
+  useEffect(() => {
+    const uniq = Array.from(
+      new Map(appointments.map((a) => [a.title, a])).values()
+    );
+    setUniqueAppointments(uniq);
+  }, [appointments]);
 
   const deleteEditMedication = async () => {
     if (!editingMedication) return;
@@ -533,8 +584,6 @@ const PatientProfileScreen = ({
               }
               // 3) Fetch trial medication templates and insert into trial_medications
               try {
-                console.log("Starting Step 3 (medications)...");
-
                 // 3a) Fetch trial to get cycle_duration_days
                 const { data: trialRow, error: trialError } = await supabase
                   .from("trials")
@@ -727,36 +776,159 @@ const PatientProfileScreen = ({
     setShowEditApptModal(true);
   };
 
-  const submitEditAppointment = async () => {
-    if (!editingAppointment) return;
+  // Helper to parse YYYY-MM-DD as UTC date (no timezone shift)
+  const parseDateUTC = (dateStr: string) => {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+  };
 
-    // normalize requirements back to array if comma separated
+  const handleOffsetAppointments = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const futureAppointments = appointments.filter((appt) => {
+      const apptDate = parseDateUTC(appt.date);
+      apptDate.setHours(0, 0, 0, 0);
+      return apptDate >= today;
+    });
+
+    if (futureAppointments.length === 0) {
+      Alert.alert(
+        "No future appointments",
+        "There are no appointments to offset."
+      );
+      return;
+    }
+
+    setAppointmentsToOffset(futureAppointments);
+    setOffsetDays("");
+    setProgress({ current: 0, total: futureAppointments.length });
+    setShowOffsetModal(true);
+  };
+
+  const confirmOffsetAppointments = () => {
+    const days = parseInt(offsetDays, 10);
+    if (isNaN(days)) {
+      Alert.alert("Invalid Input", "Please enter a valid number of days.");
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Offset",
+      `Are you sure you want to offset all appointments by ${days} days?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          style: "default",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const total = appointmentsToOffset.length;
+              for (let i = 0; i < total; i++) {
+                const appt = appointmentsToOffset[i];
+
+                // Calculate new date
+                const oldDate = parseDateUTC(appt.date);
+                const newDate = new Date(oldDate);
+                newDate.setUTCDate(newDate.getUTCDate() + days);
+                const newDateStr = newDate.toISOString().split("T")[0];
+
+                // Update local state
+                setAppointments((prev) =>
+                  prev.map((a) =>
+                    a.id === appt.id ? { ...a, date: newDateStr } : a
+                  )
+                );
+
+                // Update Supabase
+                await supabase
+                  .from("appointments")
+                  .update({ date: newDateStr })
+                  .eq("id", appt.id);
+
+                // Update progress
+                setProgress({ current: i + 1, total });
+              }
+
+              setShowOffsetModal(false);
+              setOffsetDays("");
+              Alert.alert(
+                "Success",
+                `${total} appointments moved by ${days} days.`
+              );
+            } catch (error) {
+              console.error("Error offsetting appointments:", error);
+              Alert.alert(
+                "Error",
+                "Something went wrong while updating appointments."
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const submitEditAppointment = async () => {
+    // Normalize requirements into array if non-empty
     const reqArray =
       editApptRequirements && editApptRequirements.trim() !== ""
         ? editApptRequirements.split(",").map((r) => r.trim())
         : null;
 
-    const { error } = await supabase
-      .from("appointments")
-      .update({
-        date: editApptDate,
-        time: editApptTime === "" ? null : editApptTime,
-        title: editApptTitle,
-        category: editApptCategory,
-        location: editApptLocation,
-        requirements: reqArray,
-      })
-      .eq("id", editingAppointment.id);
-
-    if (error) {
-      Alert.alert("Error", "Failed to update appointment.");
-      console.error(error);
-    } else {
-      Alert.alert("Success", "Appointment updated.");
-      setShowEditApptModal(false);
-      setEditingAppointment(null);
-      await fetchPatientData();
+    // Do not proceed if patient is null
+    if (!patient) {
+      Alert.alert("Error", "Patient data is not loaded.");
+      return;
     }
+
+    // Prepare the appointment payload
+    const appointmentData = {
+      user_id: patient.id,
+      date: editApptDate,
+      time: editApptTime === "" ? null : editApptTime,
+      title: editApptTitle,
+      category: editApptCategory,
+      location: editApptLocation,
+      requirements: reqArray,
+    };
+
+    if (editingAppointment) {
+      // Edit existing appointment
+      const { error } = await supabase
+        .from("appointments")
+        .update(appointmentData)
+        .eq("id", editingAppointment.id);
+
+      if (error) {
+        Alert.alert("Error", "Failed to update appointment.");
+        console.error(error);
+        return;
+      }
+
+      Alert.alert("Success", "Appointment updated.");
+    } else {
+      // Add new appointment
+      const { error } = await supabase
+        .from("appointments")
+        .insert(appointmentData);
+
+      if (error) {
+        Alert.alert("Error", "Failed to add appointment.");
+        console.error(error);
+        return;
+      }
+
+      Alert.alert("Success", "Appointment added.");
+    }
+
+    // Close modal and refresh data
+    setShowEditApptModal(false);
+    setEditingAppointment(null);
+    await fetchPatientData();
   };
 
   const deleteEditAppointment = async () => {
@@ -790,11 +962,12 @@ const PatientProfileScreen = ({
     );
   };
 
-  if (loading || !patient) {
+  if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text>Loading patient data...</Text>
-      </SafeAreaView>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Updating patient data...</Text>
+      </View>
     );
   }
 
@@ -862,18 +1035,73 @@ const PatientProfileScreen = ({
         {activeTab === "appointments" && (
           <Card style={styles.contentCard}>
             <Card.Content>
+              {/* Add Appointment Button */}
+              {appointments.length > 0 && (
+                <Button
+                  mode="contained"
+                  style={[styles.addAppointment, { marginBottom: 10 }]}
+                  onPress={() => {
+                    // Reset all form fields
+                    setEditingAppointment(null);
+                    setEditApptTitle("");
+                    setEditApptCategory("");
+                    setEditApptLocation("");
+                    setEditApptDate("");
+                    setEditApptTime("");
+                    setEditApptRequirements("");
+
+                    // Open modal
+                    setShowEditApptModal(true);
+                  }}
+                >
+                  Add Appointment
+                </Button>
+              )}
+              {/* Offset All Appointments Button */}
+              {appointments.length > 0 && (
+                <Button
+                  mode="contained"
+                  style={styles.offsetAppointment}
+                  onPress={() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    // Filter appointments for today or later
+                    const futureAppts = appointments.filter((appt) => {
+                      const apptDate = getAppointmentDateTime(appt);
+                      apptDate.setHours(0, 0, 0, 0);
+                      return apptDate >= today;
+                    });
+
+                    setAppointmentsToOffset(futureAppts);
+                    setOffsetDays(""); // reset input
+                    setShowOffsetModal(true);
+                  }}
+                >
+                  Offset All Appointments
+                </Button>
+              )}
+              {appointments.length > 0 && (
+                <Button
+                  mode="contained"
+                  onPress={() => setShowMassEditApptModal(true)}
+                  style={{ marginBottom: 10 }}
+                >
+                  Mass Edit Appointments
+                </Button>
+              )}
               {appointments.length > 0 ? (
                 <List.Section>
                   {Object.entries(
                     appointments.reduce((groups, appt) => {
                       const dateKey = format(
                         getAppointmentDateTime(appt),
-                        "PPPP" // e.g., "Thursday, October 3, 2025"
+                        "PPPP"
                       );
                       if (!groups[dateKey]) groups[dateKey] = [];
                       groups[dateKey].push(appt);
                       return groups;
-                    }, {})
+                    }, {} as Record<string, Appointment[]>)
                   ).map(([date, appts]) => (
                     <View key={date} style={{ marginBottom: 15 }}>
                       <Text
@@ -917,6 +1145,27 @@ const PatientProfileScreen = ({
         {activeTab === "medications" && (
           <Card style={styles.contentCard}>
             <Card.Content>
+              {medications.length > 0 && (
+                <PatientMedicationLogBook patientId={patientId} />
+              )}
+              {medications.length > 0 && (
+                <OptionalMedicationAssigner patientId={patientId} />
+              )}
+              {medications.length > 0 && (
+                <Button
+                  mode="contained"
+                  style={styles.massEditButton}
+                  onPress={() => {
+                    setShowMassEditMedModal(true);
+                    setSelectedMassMedId(null);
+                    setSelectedField("name");
+                    setCurrentFieldValue("");
+                    setNewFieldValue("");
+                  }}
+                >
+                  Mass Edit Medications
+                </Button>
+              )}
               {medications.length > 0 ? (
                 <List.Section>
                   {medications.map((med) => (
@@ -945,7 +1194,483 @@ const PatientProfileScreen = ({
             </Card.Content>
           </Card>
         )}
+
+      {activeTab === "notes" && (
+        <PatientNotes patientId={patientId} />
+      )}
       </ScrollView>
+
+      {/* Offset Appointments Modal */}
+      <Modal
+        visible={showOffsetModal}
+        onRequestClose={() => setShowOffsetModal(false)}
+        animationType="slide"
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>Offset Appointments</Text>
+            <Text>{`You have ${appointmentsToOffset.length} appointment(s) scheduled today or in the future.`}</Text>
+
+            <TextInput
+              label="Days to offset"
+              value={offsetDays}
+              onChangeText={setOffsetDays}
+              keyboardType="numeric"
+              mode="outlined"
+              style={{ marginVertical: 10 }}
+            />
+
+            <View style={styles.buttonRow}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowOffsetModal(false)}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={confirmOffsetAppointments}
+                disabled={!offsetDays || isNaN(parseInt(offsetDays)) || loading}
+                style={styles.submitButton}
+              >
+                Confirm
+              </Button>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Mass edit appointments modal */}
+      <Modal
+        visible={showMassEditApptModal}
+        onRequestClose={() => setShowMassEditApptModal(false)}
+        animationType="slide"
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>Mass Edit Appointments</Text>
+
+            <View style={[styles.buttonRow, { marginBottom: 10 }]}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowMassEditApptModal(false)}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+            </View>
+
+            <Text style={{ marginBottom: 5 }}>Select Appointment Title:</Text>
+            {uniqueAppointments.map((appt) => (
+              <TouchableOpacity
+                key={appt.id}
+                style={{
+                  padding: 10,
+                  backgroundColor:
+                    selectedMassApptId === appt.id ? "#007AFF" : "#eee",
+                  marginVertical: 3,
+                  borderRadius: 5,
+                }}
+                onPress={() => {
+                  setSelectedMassApptId(appt.id);
+                  setCurrentFieldValue(appt.title);
+                  setSelectedField("title");
+                  setNewFieldValue("");
+                }}
+              >
+                <Text
+                  style={{
+                    color: selectedMassApptId === appt.id ? "#fff" : "#000",
+                  }}
+                >
+                  {appt.title} | {appt.category ?? ""} | {appt.location ?? ""}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            {selectedMassApptId && (
+              <>
+                <Text style={{ marginTop: 10 }}>Select Field to Edit:</Text>
+                {["title", "category", "location", "requirements"].map(
+                  (field) => (
+                    <TouchableOpacity
+                      key={field}
+                      style={{
+                        padding: 8,
+                        backgroundColor:
+                          selectedField === field ? "#007AFF" : "#eee",
+                        marginVertical: 2,
+                        borderRadius: 5,
+                      }}
+                      onPress={() => {
+                        setSelectedField(
+                          field as
+                            | "title"
+                            | "category"
+                            | "location"
+                            | "requirements"
+                        );
+                        const appt = uniqueAppointments.find(
+                          (a) => a.id === selectedMassApptId
+                        );
+
+                        let currentValue = "";
+                        if (field === "title") currentValue = appt?.title ?? "";
+                        else if (field === "category")
+                          currentValue = appt?.category ?? "";
+                        else if (field === "location")
+                          currentValue = appt?.location ?? "";
+                        else if (field === "requirements") {
+                          if (
+                            Array.isArray(appt?.requirements) &&
+                            appt.requirements.length > 0
+                          ) {
+                            currentValue = appt.requirements.join(", ");
+                          } else {
+                            currentValue = "None";
+                          }
+                        }
+
+                        setCurrentFieldValue(currentValue);
+                        setNewFieldValue("");
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: selectedField === field ? "#fff" : "#000",
+                        }}
+                      >
+                        {field.charAt(0).toUpperCase() + field.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
+
+                <Text style={{ marginTop: 10 }}>Current Value:</Text>
+                <Text style={{ marginBottom: 5, fontWeight: "bold" }}>
+                  {currentFieldValue && currentFieldValue !== "None"
+                    ? currentFieldValue
+                    : "None"}
+                </Text>
+                <TextInput
+                  label="New Value"
+                  value={newFieldValue}
+                  onChangeText={setNewFieldValue}
+                  mode="outlined"
+                  style={{ marginBottom: 10 }}
+                  placeholder={
+                    selectedField === "requirements"
+                      ? "Separate multiple values with commas"
+                      : ""
+                  }
+                />
+
+                <View style={styles.buttonRow}>
+                  <Button
+                    mode="contained"
+                    onPress={async () => {
+                      if (!selectedMassApptId || !newFieldValue.trim()) return;
+                      const appt = uniqueAppointments.find(
+                        (a) => a.id === selectedMassApptId
+                      );
+                      if (!appt) return;
+
+                      const field = selectedField;
+                      let valueToUpdate: any = newFieldValue;
+
+                      // Convert comma-separated string to array for text[] field
+                      if (field === "requirements") {
+                        valueToUpdate = newFieldValue
+                          .split(",")
+                          .map((v) => v.trim())
+                          .filter(Boolean);
+                      }
+
+                      const { error } = await supabase
+                        .from("appointments")
+                        .update({ [field]: valueToUpdate })
+                        .eq("user_id", patientId)
+                        .eq("title", appt.title);
+
+                      if (error) {
+                        Alert.alert(
+                          "Error",
+                          "Failed to update appointments: " + error.message
+                        );
+                        console.error(error);
+                      } else {
+                        Alert.alert(
+                          "Success",
+                          `Updated all "${appt.title}" appointments.`
+                        );
+                        setShowMassEditApptModal(false);
+                        await fetchPatientData();
+                      }
+                    }}
+                    style={styles.submitButton}
+                  >
+                    Save
+                  </Button>
+                </View>
+
+                {/* Delete All Button */}
+                <View style={[styles.buttonRow, { marginTop: 10 }]}>
+                  <Button
+                    mode="contained"
+                    style={styles.deleteButton}
+                    onPress={() => {
+                      const appt = uniqueAppointments.find(
+                        (a) => a.id === selectedMassApptId
+                      );
+                      if (!appt) return;
+
+                      Alert.alert(
+                        "Confirm Delete",
+                        `Are you sure you want to delete all "${appt.title}" appointments for this patient?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: async () => {
+                              const { error } = await supabase
+                                .from("appointments")
+                                .delete()
+                                .eq("user_id", patientId)
+                                .eq("title", appt.title);
+
+                              if (error) {
+                                Alert.alert(
+                                  "Error",
+                                  "Failed to delete appointments: " +
+                                    error.message
+                                );
+                                console.error(error);
+                              } else {
+                                Alert.alert(
+                                  "Success",
+                                  `Deleted all "${appt.title}" appointments.`
+                                );
+                                setShowMassEditApptModal(false);
+                                await fetchPatientData();
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    Delete All
+                  </Button>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Mass edit medications modal */}
+      <Modal
+        visible={showMassEditMedModal}
+        onRequestClose={() => setShowMassEditMedModal(false)}
+        animationType="slide"
+      >
+        <SafeAreaView
+          style={styles.modalContainer}
+          edges={["top", "left", "right"]}
+        >
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalTitle}>Mass Edit Medications</Text>
+
+            <View style={[styles.buttonRow, { marginBottom: 10 }]}>
+              <Button
+                mode="outlined"
+                onPress={() => setShowMassEditMedModal(false)}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </Button>
+            </View>
+
+            <Text style={{ marginBottom: 5 }}>Select Medication:</Text>
+            {uniqueMeds.map((med) => (
+              <TouchableOpacity
+                key={med.id}
+                style={{
+                  padding: 10,
+                  backgroundColor:
+                    selectedMassMedId === med.id ? "#007AFF" : "#eee",
+                  marginVertical: 3,
+                  borderRadius: 5,
+                }}
+                onPress={() => {
+                  setSelectedMassMedId(med.id);
+                  setCurrentFieldValue(med.name);
+                  setSelectedField("name");
+                  setNewFieldValue("");
+                }}
+              >
+                <Text
+                  style={{
+                    color: selectedMassMedId === med.id ? "#fff" : "#000",
+                  }}
+                >
+                  {med.name} | {med.frequency ?? ""} | {med.notes ?? ""}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            {selectedMassMedId && (
+              <>
+                <Text style={{ marginTop: 10 }}>Select Field to Edit:</Text>
+                {["name", "frequency", "notes"].map((field) => (
+                  <TouchableOpacity
+                    key={field}
+                    style={{
+                      padding: 8,
+                      backgroundColor:
+                        selectedField === field ? "#007AFF" : "#eee",
+                      marginVertical: 2,
+                      borderRadius: 5,
+                    }}
+                    onPress={() => {
+                      setSelectedField(field as "name" | "frequency" | "notes");
+                      const med = uniqueMeds.find(
+                        (m) => m.id === selectedMassMedId
+                      );
+                      setCurrentFieldValue(
+                        field === "name"
+                          ? med?.name ?? ""
+                          : field === "frequency"
+                          ? med?.frequency ?? ""
+                          : med?.notes ?? ""
+                      );
+                      setNewFieldValue("");
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: selectedField === field ? "#fff" : "#000",
+                      }}
+                    >
+                      {field.charAt(0).toUpperCase() + field.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+
+                <Text style={{ marginTop: 10 }}>Current Value:</Text>
+                <Text style={{ marginBottom: 5, fontWeight: "bold" }}>
+                  {currentFieldValue}
+                </Text>
+
+                <TextInput
+                  label="New Value"
+                  value={newFieldValue}
+                  onChangeText={setNewFieldValue}
+                  mode="outlined"
+                  style={{ marginBottom: 10 }}
+                />
+
+                <View style={styles.buttonRow}>
+                  <Button
+                    mode="contained"
+                    onPress={async () => {
+                      if (!selectedMassMedId || !newFieldValue.trim()) return;
+                      const med = uniqueMeds.find(
+                        (m) => m.id === selectedMassMedId
+                      );
+                      if (!med) return;
+
+                      const field = selectedField;
+                      const { error } = await supabase
+                        .from("trial_medications")
+                        .update({ [field]: newFieldValue })
+                        .eq("user_id", patientId)
+                        .eq("name", med.name);
+
+                      if (error) {
+                        Alert.alert(
+                          "Error",
+                          "Failed to update medications: " + error.message
+                        );
+                        console.error(error);
+                      } else {
+                        Alert.alert(
+                          "Success",
+                          `Updated all "${med.name}" entries.`
+                        );
+                        setShowMassEditMedModal(false);
+                        await fetchPatientData();
+                      }
+                    }}
+                    style={styles.submitButton}
+                  >
+                    Save
+                  </Button>
+                </View>
+
+                {/* New Delete Button */}
+                <View style={[styles.buttonRow, { marginTop: 10 }]}>
+                  <Button
+                    mode="contained"
+                    style={styles.deleteButton}
+                    onPress={() => {
+                      const med = uniqueMeds.find(
+                        (m) => m.id === selectedMassMedId
+                      );
+                      if (!med) return;
+
+                      Alert.alert(
+                        "Confirm Delete",
+                        `Are you sure you want to delete all "${med.name}" medications for this patient?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: async () => {
+                              const { error } = await supabase
+                                .from("trial_medications")
+                                .delete()
+                                .eq("user_id", patientId)
+                                .eq("name", med.name);
+
+                              if (error) {
+                                Alert.alert(
+                                  "Error",
+                                  "Failed to delete medications: " +
+                                    error.message
+                                );
+                                console.error(error);
+                              } else {
+                                Alert.alert(
+                                  "Success",
+                                  `Deleted all "${med.name}" medications.`
+                                );
+                                setShowMassEditMedModal(false);
+                                await fetchPatientData();
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    Delete All
+                  </Button>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       {/* Assign Trial Modal */}
       <Modal
@@ -1001,7 +1726,7 @@ const PatientProfileScreen = ({
         </SafeAreaView>
       </Modal>
 
-      {/* Edit Medication Modal */}
+      {/* Add/Edit Medication Modal */}
       <Modal
         visible={showEditMedModal}
         onRequestClose={() => setShowEditMedModal(false)}
@@ -1037,13 +1762,12 @@ const PatientProfileScreen = ({
               style={{ marginBottom: 10 }}
             />
             <TextInput
-              label="Scheduled Date"
+              label="Scheduled Date - (YYYY-MM-DD)"
               value={editScheduledDate}
               onChangeText={setEditScheduledDate}
               mode="outlined"
               style={{ marginBottom: 10 }}
             />
-
             <View style={styles.buttonRow}>
               <Button
                 mode="contained"
@@ -1071,7 +1795,6 @@ const PatientProfileScreen = ({
         </SafeAreaView>
       </Modal>
 
-      {/* Edit Appointment Modal */}
       <Modal
         visible={showEditApptModal}
         onRequestClose={() => setShowEditApptModal(false)}
@@ -1082,7 +1805,9 @@ const PatientProfileScreen = ({
           edges={["top", "left", "right"]}
         >
           <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Appointment</Text>
+            <Text style={styles.modalTitle}>
+              {editingAppointment ? "Edit Appointment" : "New Appointment"}
+            </Text>
 
             <TextInput
               label="Title"
@@ -1113,7 +1838,7 @@ const PatientProfileScreen = ({
               style={{ marginBottom: 10 }}
             />
             <TextInput
-              label="Time (HH:MM) — leave empty for no time"
+              label="Time (HH:MM) - 24hr - leave empty for no time"
               value={editApptTime}
               onChangeText={setEditApptTime}
               mode="outlined"
@@ -1129,13 +1854,15 @@ const PatientProfileScreen = ({
             />
 
             <View style={styles.buttonRow}>
-              <Button
-                mode="contained"
-                onPress={deleteEditAppointment}
-                style={styles.deleteButton}
-              >
-                Delete
-              </Button>
+              {editingAppointment && (
+                <Button
+                  mode="contained"
+                  onPress={deleteEditAppointment}
+                  style={styles.deleteButton}
+                >
+                  Delete
+                </Button>
+              )}
               <Button
                 mode="outlined"
                 onPress={() => {
@@ -1151,7 +1878,7 @@ const PatientProfileScreen = ({
                 onPress={submitEditAppointment}
                 style={styles.submitButton}
               >
-                Save
+                {editingAppointment ? "Save" : "Add"}
               </Button>
             </View>
           </ScrollView>
