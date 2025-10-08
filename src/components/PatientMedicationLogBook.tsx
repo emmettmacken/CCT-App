@@ -13,10 +13,8 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
 }) => {
   const [medicationLogs, setMedicationLogs] = useState<any[]>([]);
   const [sideEffects, setSideEffects] = useState<any[]>([]);
-  const [logBookExpanded, setLogBookExpanded] = useState(false); // starts closed
-  const [logType, setLogType] = useState<
-    "trial" | "additional" | "side_effects"
-  >("trial");
+  const [logBookExpanded, setLogBookExpanded] = useState(false);
+  const [logType, setLogType] = useState<"trial" | "additional" | "side_effects">("trial");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
 
@@ -79,6 +77,7 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
     fetchPatientLogs();
   }, [patientId]);
 
+  // Filter logs by type and date
   const filteredLogs =
     logType === "trial" || logType === "additional"
       ? medicationLogs.filter(
@@ -86,6 +85,14 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
             log.type === logType &&
             selectedDate &&
             isSameDate(log.taken_at, selectedDate)
+        )
+      : [];
+
+  // Filter side effects by selected date
+  const filteredSideEffects =
+    logType === "side_effects" && selectedDate
+      ? sideEffects.filter((entry) =>
+          isSameDate(entry.start_date, selectedDate)
         )
       : [];
 
@@ -196,7 +203,7 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
             />
           ) : (
             <FlatList
-              data={sideEffects}
+              data={filteredSideEffects}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <View
@@ -204,7 +211,7 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
                     padding: 12,
                     marginBottom: 8,
                     borderRadius: 8,
-                    backgroundColor: "#f3f3f3", // match trial/additional log background
+                    backgroundColor: "#f3f3f3",
                   }}
                 >
                   <Text style={{ fontWeight: "bold", marginBottom: 4 }}>

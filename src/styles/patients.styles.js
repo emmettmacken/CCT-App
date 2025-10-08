@@ -233,7 +233,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     backgroundColor: "#f8f8f8",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   activeTrialOption: {
     backgroundColor: "#007AFF",
@@ -279,5 +279,15 @@ export const styles = StyleSheet.create({
   },
   massEditButton: {
     backgroundColor: "#2196f3",
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 3,
+  },
+  hintText: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 8,
   }
 });

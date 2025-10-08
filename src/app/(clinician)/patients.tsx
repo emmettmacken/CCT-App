@@ -12,6 +12,9 @@ import {
 import { Button, Card, Chip, List, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
+import OptionalMedicationAssigner from "../../components/OptionalMedicationAssigner";
+import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
+import PatientNotes from "../../components/PatientNotes";
 import { styles } from "../../styles/patients.styles";
 import {
   Appointment,
@@ -19,9 +22,6 @@ import {
   Medication,
   Patient,
 } from "../../types/patients";
-import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
-import PatientNotes from "../../components/PatientNotes";
-import OptionalMedicationAssigner from "../../components/OptionalMedicationAssigner";
 
 type ListPatient = {
   id: string;
@@ -311,6 +311,8 @@ const PatientProfileScreen = ({
   const [newApptFieldValue, setNewApptFieldValue] = useState("");
   const [uniqueAppointments, setUniqueAppointments] = useState<any[]>([]);
 
+  const [startDateInput, setStartDateInput] = useState("");
+
   // use a reusable fetch so we can call after assignment
   const fetchPatientData = async () => {
     setLoading(true);
@@ -453,7 +455,13 @@ const PatientProfileScreen = ({
                 return;
               }
 
-              // 1) Insert into patient_trials and return the row (we need id and start_date)
+              // 1a) Determine start date (use input if provided, else null = Supabase default)
+              const startDateToInsert =
+                startDateInput && startDateInput.trim() !== ""
+                  ? startDateInput.trim()
+                  : null;
+
+              // 1b) Insert into patient_trials and return the row (we need id and start_date)
               const { data: patientTrialRow, error: patientTrialError } =
                 await supabase
                   .from("patient_trials")
@@ -463,6 +471,9 @@ const PatientProfileScreen = ({
                       trial_id: selectedTrial,
                       assigned_by: user.id,
                       status: "assigned",
+                      ...(startDateToInsert && {
+                        start_date: startDateToInsert,
+                      }),
                     },
                   ])
                   .select("*")
@@ -503,7 +514,7 @@ const PatientProfileScreen = ({
                   "Assigned trial but could not fetch assessments."
                 );
               } else if (assessments && assessments.length > 0) {
-                const appointmentsToInsert: any[] = [];
+                const appointmentsToInsert = [];
 
                 // Fetch trial details (number_of_cycles + cycle_duration_days)
                 const { data: trialData, error: trialError } = await supabase
@@ -517,9 +528,8 @@ const PatientProfileScreen = ({
                 } else {
                   const { number_of_cycles, cycle_duration_days } = trialData;
 
-                  assessments.forEach((a: any) => {
-                    // applicable_cycles: directly use array, default to all cycles if empty/null
-                    const applicableCycles: number[] =
+                  assessments.forEach((a) => {
+                    const applicableCycles =
                       Array.isArray(a.applicable_cycles) &&
                       a.applicable_cycles.length > 0
                         ? a.applicable_cycles.map(Number)
@@ -528,26 +538,21 @@ const PatientProfileScreen = ({
                             (_, i) => i + 1
                           );
 
-                    // scheduled_days: directly use array, default to empty array if null
-                    const scheduledDays: number[] = Array.isArray(
-                      a.scheduled_days
-                    )
+                    const scheduledDays = Array.isArray(a.scheduled_days)
                       ? a.scheduled_days.map(Number)
                       : [];
 
-                    // Loop through cycles + scheduled days
-                    applicableCycles.forEach((cycle: number) => {
-                      scheduledDays.forEach((dayNum: number) => {
+                    applicableCycles.forEach((cycle) => {
+                      scheduledDays.forEach((dayNum) => {
                         if (Number.isNaN(dayNum) || Number.isNaN(cycle)) return;
 
-                        // calculate offset from cycle start
                         const offset =
                           (cycle - 1) * cycle_duration_days + (dayNum - 1);
                         const apptDate = addDays(startDate, offset);
 
                         appointmentsToInsert.push({
                           user_id: patient.id,
-                          date: apptDate.toISOString().split("T")[0], // YYYY-MM-DD
+                          date: apptDate.toISOString().split("T")[0],
                           time: null,
                           title: a.name,
                           category: a.category || "Clinic",
@@ -582,9 +587,9 @@ const PatientProfileScreen = ({
                   );
                 }
               }
+
               // 3) Fetch trial medication templates and insert into trial_medications
               try {
-                // 3a) Fetch trial to get cycle_duration_days
                 const { data: trialRow, error: trialError } = await supabase
                   .from("trials")
                   .select("id, cycle_duration_days")
@@ -602,7 +607,6 @@ const PatientProfileScreen = ({
 
                 const cycleDurationDays = trialRow.cycle_duration_days;
 
-                // 3b) Fetch medication templates
                 const { data: medsTemplate, error: medsTemplateError } =
                   await supabase
                     .from("trial_medications_template")
@@ -626,30 +630,24 @@ const PatientProfileScreen = ({
                   return;
                 }
 
-                const medsToInsert: any[] = [];
+                const medsToInsert = [];
 
-                // 3c) Process each template
-                medsTemplate.forEach((m: any) => {
-                  const rawApplicableCycles: number[] = Array.isArray(
-                    m.applicable_cycles
-                  )
+                medsTemplate.forEach((m) => {
+                  const rawApplicableCycles = Array.isArray(m.applicable_cycles)
                     ? m.applicable_cycles
                     : [];
-                  const rawScheduledDays: number[] = Array.isArray(
-                    m.scheduled_days
-                  )
+                  const rawScheduledDays = Array.isArray(m.scheduled_days)
                     ? m.scheduled_days
                     : [];
 
                   const uniqueCycles = [...new Set(rawApplicableCycles)];
                   const uniqueDays = [...new Set(rawScheduledDays)];
 
-                  uniqueCycles.forEach((cycle: number) => {
-                    uniqueDays.forEach((dayNum: number) => {
+                  uniqueCycles.forEach((cycle) => {
+                    uniqueDays.forEach((dayNum) => {
                       const cycleOffset = (cycle - 1) * cycleDurationDays;
                       const dayOffset = dayNum - 1;
                       const totalOffset = cycleOffset + dayOffset;
-
                       const medDate = addDays(startDate, totalOffset);
 
                       medsToInsert.push({
@@ -711,10 +709,14 @@ const PatientProfileScreen = ({
               // 5) close modal, clear selection and refresh patient data
               setShowAssignModal(false);
               setSelectedTrial(null);
+              setStartDateInput("");
 
               await fetchPatientData();
 
-              Alert.alert("Success", "Trial assigned and items copied.");
+              Alert.alert(
+                "Success",
+                `Trial assigned starting on ${startDateStr}.`
+              );
             } catch (error) {
               console.error("Error assigning trial:", error);
               Alert.alert(
@@ -1195,9 +1197,7 @@ const PatientProfileScreen = ({
           </Card>
         )}
 
-      {activeTab === "notes" && (
-        <PatientNotes patientId={patientId} />
-      )}
+        {activeTab === "notes" && <PatientNotes patientId={patientId} />}
       </ScrollView>
 
       {/* Offset Appointments Modal */}
@@ -1704,6 +1704,21 @@ const PatientProfileScreen = ({
                 </Text>
               </TouchableOpacity>
             ))}
+
+            {/* Date input appears only after trial selected */}
+            {selectedTrial && (
+              <View style={{ marginTop: 20 }}>
+                <Text style={styles.label}>Enter Start Date (optional) : YYYY-MM-DD</Text>
+                <TextInput
+                  placeholder="YYYY-MM-DD"
+                  value={startDateInput}
+                  onChangeText={setStartDateInput}
+                />
+                <Text style={styles.hintText}>
+                  Leave blank to use today’s date.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.buttonRow}>
               <Button

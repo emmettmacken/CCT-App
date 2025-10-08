@@ -1,136 +1,177 @@
-import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { SafeAreaView, Text, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Calendar } from "react-native-calendars";
 import { supabase } from "../../../backend/supabaseClient";
-import AppointmentModal from "../../components/AppointmentModal";
 import { styles } from "../../styles/appointments.styles";
-import { Appointment } from "../../types/appointments";
-import * as Linking from "expo-linking";
 
-const CalendarScreen = () => {
-  const [appointments, setAppointments] = useState<Record<string, any>>({});
+type Appointment = {
+  id: string;
+  user_id: string;
+  date: string;
+  time: string | null;
+  title: string;
+  location: string | null;
+  requirements: string[] | null;
+  category: string | null;
+};
+
+export default function PatientCalendarScreen() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const { date } = useLocalSearchParams<{ date?: string }>();
+  // Editable time state
+  const [editingTime, setEditingTime] = useState(false);
+  const [patientTime, setPatientTime] = useState<string | null>(null);
 
+  // Fetch only this patient's appointments
   useEffect(() => {
     const fetchAppointments = async () => {
-      try {
-        const { data, error } = await supabase.from("appointments").select("*");
-        if (error) {
-          console.error("[CalendarScreen] Supabase error:", error);
-          return;
-        }
+      setLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-        const now = new Date();
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: true });
 
-        const formattedAppointments = data?.reduce(
-          (acc: Record<string, any>, appt: any) => {
-            if (!appt.date) return acc;
-
-            const apptDateObj = appt.time
-              ? new Date(`${appt.date}T${appt.time}`)
-              : new Date(appt.date);
-            const isPast = apptDateObj < now;
-
-            if (!acc[appt.date]) {
-              acc[appt.date] = {
-                customStyles: {
-                  container: {
-                    backgroundColor: isPast ? "#b0b0b0" : "#3f51b5",
-                    borderRadius: 20,
-                    width: 36,
-                    height: 36,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  },
-                  text: { color: "#fff" },
-                },
-                appointmentData: {
-                  title: "",
-                  time: "",
-                  location: appt.location || "",
-                  date: appt.date,
-                  patientName: "",
-                  requirements: [] as string[],
-                },
-                marked: true,
-              };
-            }
-
-            const apptData = acc[appt.date].appointmentData;
-
-            // Concatenate titles and times
-            apptData.title += (apptData.title ? ", " : "") + appt.title;
-            apptData.time += (apptData.time ? ", " : "") + (appt.time || "");
-            apptData.patientName +=
-              (apptData.patientName ? ", " : "") +
-              (appt.profiles?.name || "Unknown");
-
-            // Location only once per date
-            apptData.location = apptData.location || appt.location || "";
-
-            // Join all requirements
-            if (appt.requirements && Array.isArray(appt.requirements)) {
-              apptData.requirements = apptData.requirements
-                ? [...apptData.requirements, ...appt.requirements]
-                : [...appt.requirements];
-            }
-
-            return acc;
-          },
-          {}
-        );
-
-        setAppointments(formattedAppointments);
-
-        if (date && formattedAppointments[date]) {
-          setSelectedDate(date);
-          setSelectedAppointment(formattedAppointments[date].appointmentData);
-          setModalVisible(true);
-        }
-      } catch (err) {
-        console.error("fetchAppointments error:", err);
-      } finally {
+      if (error) {
+        console.error("Error fetching appointments:", error);
         setLoading(false);
+        return;
       }
+
+      setAppointments(data || []);
+      setLoading(false);
     };
 
     fetchAppointments();
-  }, [date]);
+  }, []);
 
+  // Marked dates for the calendar
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
+    appointments.forEach((appt) => {
+      marks[appt.date] = {
+        marked: true,
+        dotColor: "#007AFF",
+        selected: appt.date === selectedDate,
+      };
+    });
+    return marks;
+  }, [appointments, selectedDate]);
+
+  // Handle date selection
   const handleDayPress = (day: { dateString: string }) => {
     setSelectedDate(day.dateString);
-    const entry = appointments[day.dateString];
-    if (entry?.appointmentData) {
-      setSelectedAppointment(entry.appointmentData);
-      setModalVisible(true);
-    } else {
-      setSelectedAppointment(null);
-      setModalVisible(false);
+    setCurrentIndex(0);
+    setModalVisible(true);
+  };
+
+  const selectedDayAppointments = appointments.filter(
+    (appt) => appt.date === selectedDate
+  );
+
+  const currentAppointment =
+    selectedDayAppointments.length > 0
+      ? selectedDayAppointments[currentIndex]
+      : null;
+
+  // Determine earliest time for the day
+  const earliestTime = (() => {
+    const times = selectedDayAppointments
+      .map((a) => a.time)
+      .filter((t): t is string => !!t);
+    if (times.length === 0) return null;
+    return times.sort((a, b) => a.localeCompare(b))[0];
+  })();
+
+  // Reset patientTime when changing appointment
+  useEffect(() => {
+    if (currentAppointment) {
+      setPatientTime(currentAppointment.time);
+      setEditingTime(false);
+    }
+  }, [currentAppointment]);
+
+  const nextAppointment = () => {
+    if (selectedDayAppointments.length > 0) {
+      setCurrentIndex((prev) => (prev + 1) % selectedDayAppointments.length);
     }
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text>Loading calendar...</Text>
-      </SafeAreaView>
-    );
-  }
+  const prevAppointment = () => {
+    if (selectedDayAppointments.length > 0) {
+      setCurrentIndex(
+        (prev) =>
+          (prev - 1 + selectedDayAppointments.length) %
+          selectedDayAppointments.length
+      );
+    }
+  };
+
+  // Save patient-entered time to Supabase
+  const handleSaveTime = async () => {
+    if (!currentAppointment || !patientTime) return;
+
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ time: patientTime })
+        .eq("id", currentAppointment.id);
+
+      if (error) throw error;
+
+      // Update local state to reflect new time
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === currentAppointment.id ? { ...a, time: patientTime } : a
+        )
+      );
+      setEditingTime(false);
+    } catch (err) {
+      console.error("Error saving time:", err);
+    }
+  };
+
+  const formatTime = (timeStr: string) => {
+    // Simple formatting HH:MM
+    return timeStr;
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Your Appointments</Text>
+    <View style={{ flex: 1, backgroundColor: "#fff", padding: 16 }}>
+      <Text
+        style={{
+          fontSize: 22,
+          fontWeight: "600",
+          marginBottom: 12,
+          textAlign: "center",
+        }}
+      >
+        My Appointments
+      </Text>
       <Text style={styles.subtitle}>Tap on a date to view details</Text>
       <Text style={styles.attendance}>
         If you cannot attend your scheduled appointment, please contact Clinical
-        Trials Office at <Text style={styles.contactDetail}>
+        Trials Office at{" "}
+        <Text style={styles.contactDetail}>
           <Text
             style={{ color: "blue", textDecorationLine: "underline" }}
             onPress={() =>
@@ -143,51 +184,163 @@ const CalendarScreen = () => {
               ])
             }
           >
-          (087) 382 4221
+            (087) 382 4221
           </Text>
         </Text>
       </Text>
-      <Calendar
-        current={date || new Date().toISOString().split("T")[0]}
-        minDate={new Date().toISOString().split("T")[0]}
-        maxDate={"2050-12-31"}
-        markingType={"custom"}
-        markedDates={appointments}
-        onDayPress={handleDayPress}
-        firstDay={1}
-        theme={{
-          calendarBackground: "#ffffff",
-          textSectionTitleColor: "#3f51b5",
-          selectedDayBackgroundColor: "#3f51b5",
-          selectedDayTextColor: "#ffffff",
-          todayTextColor: "#3f51b5",
-          dayTextColor: "#2d4150",
-          textDisabledColor: "#d9e1e8",
-          dotColor: "#3f51b5",
-          selectedDotColor: "#ffffff",
-          arrowColor: "#3f51b5",
-          monthTextColor: "#3f51b5",
-          indicatorColor: "#3f51b5",
-          textDayFontWeight: "300",
-          textMonthFontWeight: "bold",
-          textDayHeaderFontWeight: "300",
-          textDayFontSize: 16,
-          textMonthFontSize: 16,
-          textDayHeaderFontSize: 16,
-        }}
-        style={styles.calendar}
-      />
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color="#007AFF"
+          style={{ marginTop: 40 }}
+        />
+      ) : (
+        <Calendar
+          markedDates={markedDates}
+          onDayPress={handleDayPress}
+          firstDay={1}
+          theme={{
+            selectedDayBackgroundColor: "#007AFF",
+            todayTextColor: "#007AFF",
+            arrowColor: "#007AFF",
+            dotColor: "#007AFF",
+          }}
+        />
+      )}
 
-      <AppointmentModal
-        visible={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setSelectedAppointment(null);
-        }}
-        appointment={selectedAppointment}
-      />
-    </SafeAreaView>
+      {/* Appointment Modal */}
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              padding: 20,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20, fontWeight: "600", marginBottom: 10 }}>
+              {selectedDate}
+            </Text>
+
+            {currentAppointment ? (
+              <>
+                <Text style={{ fontSize: 18, fontWeight: "500" }}>
+                  {currentAppointment.title}
+                </Text>
+
+                {/* Editable Time */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 10,
+                  }}
+                >
+                  <Text style={{ fontWeight: "600", marginRight: 6 }}>
+                    Time:
+                  </Text>
+                  {editingTime ? (
+                    <TextInput
+                      style={{
+                        borderWidth: 1,
+                        borderColor: "#ccc",
+                        borderRadius: 8,
+                        padding: 6,
+                        minWidth: 100,
+                      }}
+                      placeholder="HH:MM (24h)"
+                      value={patientTime || ""}
+                      onChangeText={setPatientTime}
+                      onSubmitEditing={handleSaveTime}
+                      onBlur={handleSaveTime}
+                      autoFocus
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => setEditingTime(true)}>
+                      <Text style={{ color: patientTime ? "#000" : "#999" }}>
+                        {patientTime
+                          ? formatTime(patientTime)
+                          : "Enter time given by clinic"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <Text style={{ marginTop: 6 }}>
+                  Location:{" "}
+                  {currentAppointment.location ||
+                    "University Hospital Limerick"}
+                </Text>
+
+                <Text>
+                  Category: {currentAppointment.category || "General"}
+                </Text>
+                {currentAppointment.requirements && (
+                  <Text>
+                    Requirements: {currentAppointment.requirements.join(", ")}
+                  </Text>
+                )}
+
+                {/* Navigation for multiple appointments */}
+                {selectedDayAppointments.length > 1 && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 20,
+                      justifyContent: "space-between",
+                      width: "60%",
+                    }}
+                  >
+                    <TouchableOpacity onPress={prevAppointment}>
+                      <Ionicons
+                        name="chevron-back-circle"
+                        size={36}
+                        color="#007AFF"
+                      />
+                    </TouchableOpacity>
+                    <Text>
+                      {currentIndex + 1} / {selectedDayAppointments.length}
+                    </Text>
+                    <TouchableOpacity onPress={nextAppointment}>
+                      <Ionicons
+                        name="chevron-forward-circle"
+                        size={36}
+                        color="#007AFF"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text>No appointments for this day.</Text>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setModalVisible(false)}
+              style={{
+                marginTop: 25,
+                backgroundColor: "#007AFF",
+                paddingVertical: 10,
+                paddingHorizontal: 30,
+                borderRadius: 10,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
-};
-
-export default CalendarScreen;
+}

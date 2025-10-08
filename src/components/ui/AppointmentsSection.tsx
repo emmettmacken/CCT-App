@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { Card, List, Button } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../styles/clinicianHome.styles';
-import { Appointment } from '../../types/clinician';
+import { useNavigation } from "@react-navigation/native";
+import React from "react";
+import { Text, View } from "react-native";
+import { Button, Card, List } from "react-native-paper";
+import { styles } from "../../styles/clinicianHome.styles";
+import { Appointment } from "../../types/clinician";
 
 interface Props {
   appointments: Appointment[];
@@ -14,7 +14,8 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
 
   // Group appointments by patient
   const groupedAppointments = appointments.reduce((acc, appt) => {
-    const patient = appt.patient_name || appt.profiles?.name || "Unknown Patient";
+    const patient =
+      appt.patient_name || appt.profiles?.name || "Unknown Patient";
     if (!acc[patient]) acc[patient] = [];
     acc[patient].push(appt.title);
     return acc;
@@ -26,7 +27,9 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
         title="Today's Appointments"
         titleStyle={styles.cardTitle}
         right={() => (
-          <Text style={styles.appointmentCount}>{appointments.length} scheduled</Text>
+          <Text style={styles.appointmentCount}>
+            {appointments.length} scheduled
+          </Text>
         )}
       />
       <Card.Content>
@@ -41,7 +44,13 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
                 right={() => (
                   <Button
                     mode="outlined"
-                    onPress={() => navigation.navigate("Appointments", { patient })}
+                    onPress={() =>
+                      navigation.navigate("calendar", {
+                        patient,
+                        autoOpen: true,
+                        date: new Date().toISOString().split("T")[0],
+                      })
+                    }
                     style={styles.viewButton}
                     labelStyle={styles.viewButtonLabel}
                   >
@@ -53,7 +62,9 @@ const AppointmentsSection: React.FC<Props> = ({ appointments }) => {
             ))}
           </List.Section>
         ) : (
-          <Text style={styles.noItemsText}>No appointments scheduled for today</Text>
+          <Text style={styles.noItemsText}>
+            No appointments scheduled for today
+          </Text>
         )}
       </Card.Content>
     </Card>
