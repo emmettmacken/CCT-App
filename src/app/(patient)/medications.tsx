@@ -1,24 +1,25 @@
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
-  SafeAreaView,
   Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { DatePickerModal, TimePickerModal } from "react-native-paper-dates";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
-import { styles } from "../../styles/medications.styles";
-import { AdditionalMedication, Medication } from "../../types/medications";
-
-import { MaterialIcons } from "@expo/vector-icons";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 import { AddAdditionalMedModal } from "../../components/AddAdditionalMedModal";
 import SideEffectModal from "../../components/AddSideEffect";
+import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
 import { AdditionalMedicationsSection } from "../../components/ui/AdditionalMedicationsSection";
 import { TrialMedicationsSection } from "../../components/ui/TrialMedicationsSections";
+import { useTabRefresh } from "../../hooks/useTabRefresh";
+import { styles } from "../../styles/medications.styles";
+import { AdditionalMedication, Medication } from "../../types/medications";
 
 const MedicationTrackingScreen = () => {
   const [trialMedications, setTrialMedications] = useState<Medication[]>([]);
@@ -27,6 +28,7 @@ const MedicationTrackingScreen = () => {
   );
   const [medicationLogs, setMedicationLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const [selectedTrialMed, setSelectedTrialMed] = useState<Medication | null>(
     null
@@ -35,11 +37,6 @@ const MedicationTrackingScreen = () => {
 
   const [showAddMedModal, setShowAddMedModal] = useState(false);
   const [medToEdit, setMedToEdit] = useState<AdditionalMedication | null>(null);
-
-  const [logBookExpanded, setLogBookExpanded] = useState(false);
-  const [logType, setLogType] = useState<"trial" | "additional">("trial");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const [showSideEffectModal, setShowSideEffectModal] = useState(false);
   const [sideEffects, setSideEffects] = useState<any[]>([]);
@@ -51,6 +48,9 @@ const MedicationTrackingScreen = () => {
   const [startDatePickerVisible, setStartDatePickerVisible] = useState(false);
   const [endDatePickerVisible, setEndDatePickerVisible] = useState(false);
 
+  // Tab refresh hook
+  useTabRefresh(fetchMedications);
+
   const isSameDate = (dateString: string, date: Date) => {
     const logDate = new Date(dateString);
     return (
@@ -60,52 +60,50 @@ const MedicationTrackingScreen = () => {
     );
   };
 
+  const today = new Date();
   const todayTrialLogs = medicationLogs.filter(
-    (log) =>
-      log.type === "trial" &&
-      selectedDate &&
-      isSameDate(log.taken_at, selectedDate)
+    (log) => log.type === "trial" && isSameDate(log.taken_at, today)
   );
-
   const todayAdditionalLogs = medicationLogs.filter(
-    (log) =>
-      log.type === "additional" &&
-      selectedDate &&
-      isSameDate(log.taken_at, selectedDate)
+    (log) => log.type === "additional" && isSameDate(log.taken_at, today)
   );
 
-  const fetchMedications = async () => {
+  async function fetchMedications() {
     setLoading(true);
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) return;
 
-    const userId = sessionData.session.user.id;
-    const today = new Date().toISOString().split("T")[0];
+    const currentUserId = sessionData.session.user.id;
+    setUserId(currentUserId); // store userId
+    const todayDateStr = new Date().toISOString().split("T")[0];
 
+    // Fetch trial medications
     const { data: trialData, error: trialError } = await supabase
       .from("trial_medications")
       .select("*")
-      .eq("user_id", userId)
-      .eq("scheduled_date", today);
+      .eq("user_id", currentUserId)
+      .eq("scheduled_date", todayDateStr);
 
     if (trialError)
       console.log("Error fetching trial meds:", trialError.message);
     else setTrialMedications(trialData || []);
 
+    // Fetch additional medications
     const { data: additionalData, error: additionalError } = await supabase
       .from("additional_medications_logs")
       .select("*")
-      .eq("user_id", userId)
-      .gte("taken_at", today);
+      .eq("user_id", currentUserId)
+      .gte("taken_at", todayDateStr);
 
     if (additionalError)
       console.log("Error fetching additional meds:", additionalError.message);
     else setAdditionalMeds(additionalData || []);
 
+    // Fetch medication logs
     const { data: trialLogsData, error: trialLogsError } = await supabase
       .from("trial_medication_logs")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", currentUserId)
       .order("taken_at", { ascending: true });
 
     if (trialLogsError)
@@ -115,7 +113,7 @@ const MedicationTrackingScreen = () => {
       await supabase
         .from("additional_medications_logs")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", currentUserId)
         .order("taken_at", { ascending: true });
 
     if (additionalLogsError)
@@ -131,19 +129,20 @@ const MedicationTrackingScreen = () => {
 
     setMedicationLogs(allLogs);
 
+    // Fetch side effects
     const { data: sideEffectsData, error: sideEffectsError } = await supabase
       .from("side_effects")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", currentUserId)
       .order("start_date", { ascending: false })
-      .gte("end_date", today);
+      .gte("end_date", todayDateStr);
 
     if (sideEffectsError)
       console.log("Error fetching side effects:", sideEffectsError.message);
     else setSideEffects(sideEffectsData || []);
 
     setLoading(false);
-  };
+  }
 
   useEffect(() => {
     fetchMedications();
@@ -156,7 +155,7 @@ const MedicationTrackingScreen = () => {
     hours: number;
     minutes: number;
   }) => {
-    if (!selectedTrialMed) return;
+    if (!selectedTrialMed || !userId) return;
 
     const taken_at = new Date();
     taken_at.setHours(hours, minutes, 0);
@@ -165,7 +164,7 @@ const MedicationTrackingScreen = () => {
       medication_id: selectedTrialMed.id,
       taken_at: taken_at.toISOString(),
       name: selectedTrialMed.name,
-      user_id: (await supabase.auth.getUser())?.data.user?.id,
+      user_id: userId,
     });
 
     if (error) console.log("Error logging medication:", error.message);
@@ -174,19 +173,11 @@ const MedicationTrackingScreen = () => {
     setTimePickerVisible(false);
   };
 
-  const filteredLogs = medicationLogs.filter(
-    (log) =>
-      log.type === logType &&
-      selectedDate &&
-      isSameDate(log.taken_at, selectedDate)
-  );
-
   const handleAddOrEditMedication = (med?: AdditionalMedication) => {
     setMedToEdit(med || null);
     setShowAddMedModal(true);
   };
 
-  // Print/Export functionality
   const handlePrintLogs = async () => {
     let logsToPrint = medicationLogs;
 
@@ -227,15 +218,11 @@ const MedicationTrackingScreen = () => {
     if (sideEffects.length > 0) {
       htmlContent += `<h2>Side Effects</h2><ul>`;
       sideEffects.forEach((se) => {
-        htmlContent +=
-          `<li>${se.description || "N/A"}: ${se.medication_taken || "N/A"} (${new Date(
-            se.start_date
-          ).toLocaleDateString()}` +
-          `${
-            se.end_date
-              ? ` - ${new Date(se.end_date).toLocaleDateString()}`
-              : ""
-          })</li>`;
+        htmlContent += `<li>${se.description || "N/A"}: ${
+          se.medication_taken || "N/A"
+        } (${new Date(se.start_date).toLocaleDateString()}${
+          se.end_date ? ` - ${new Date(se.end_date).toLocaleDateString()}` : ""
+        })</li>`;
       });
       htmlContent += `</ul>`;
     }
@@ -248,16 +235,18 @@ const MedicationTrackingScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
         <Text>Loading medications...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
       <FlatList
-        data={filteredLogs}
+        data={medicationLogs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <>
@@ -317,92 +306,8 @@ const MedicationTrackingScreen = () => {
               onAddPress={handleAddOrEditMedication}
             />
 
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginVertical: 12,
-                padding: 10,
-                backgroundColor: "#e8e8e8",
-                borderRadius: 8,
-              }}
-              onPress={() => setLogBookExpanded(!logBookExpanded)}
-            >
-              <Text style={{ fontSize: 20, fontWeight: "bold" }}>
-                Medication Log Book
-              </Text>
-              <MaterialIcons
-                name={
-                  logBookExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"
-                }
-                size={28}
-                color="black"
-              />
-            </TouchableOpacity>
+            <PatientMedicationLogBook patientId={userId ?? ""} />
 
-            {/* Collapsible log book */}
-            {logBookExpanded && (
-              <>
-                {/* Date Picker */}
-                <TouchableOpacity
-                  style={{
-                    padding: 10,
-                    backgroundColor: "#4CAF50",
-                    borderRadius: 8,
-                    marginBottom: 12,
-                    alignSelf: "center",
-                  }}
-                  onPress={() => setDatePickerVisible(true)}
-                >
-                  <Text style={{ color: "white", fontWeight: "bold" }}>
-                    {selectedDate
-                      ? selectedDate.toDateString()
-                      : "Select a Date"}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Toggle between Trial vs Additional logs */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <TouchableOpacity
-                    style={{
-                      paddingVertical: 8,
-                      paddingHorizontal: 16,
-                      backgroundColor: logType === "trial" ? "#4CAF50" : "#ccc",
-                      borderRadius: 8,
-                      marginHorizontal: 5,
-                    }}
-                    onPress={() => setLogType("trial")}
-                  >
-                    <Text style={{ color: "white", fontWeight: "bold" }}>
-                      Trial Logs
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{
-                      paddingVertical: 8,
-                      paddingHorizontal: 16,
-                      backgroundColor:
-                        logType === "additional" ? "#4CAF50" : "#ccc",
-                      borderRadius: 8,
-                      marginHorizontal: 5,
-                    }}
-                    onPress={() => setLogType("additional")}
-                  >
-                    <Text style={{ color: "white", fontWeight: "bold" }}>
-                      Additional Logs
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-            
             <View style={{ marginVertical: 12 }}>
               <TouchableOpacity
                 style={{
@@ -508,33 +413,7 @@ const MedicationTrackingScreen = () => {
             </View>
           </>
         }
-        renderItem={({ item }) =>
-          logBookExpanded ? (
-            <View
-              style={{
-                padding: 12,
-                marginBottom: 8,
-                borderRadius: 8,
-                backgroundColor: "#f3f3f3",
-              }}
-            >
-              <Text style={{ fontWeight: "bold" }}>
-                {logType === "trial"
-                  ? "Trial Medication"
-                  : "Additional Medication"}
-              </Text>
-              <Text>Name: {item.name}</Text>
-              {logType === "additional" && <Text>Dosage: {item.dosage}</Text>}
-              {logType === "additional" && item.reason && (
-                <Text>Reason: {item.reason}</Text>
-              )}
-              <Text>Time: {new Date(item.taken_at).toLocaleString()}</Text>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          logBookExpanded ? <Text>No {logType} logs found.</Text> : null
-        }
+        renderItem={() => null}
         contentContainerStyle={styles.scrollContainer}
       />
 
@@ -549,18 +428,6 @@ const MedicationTrackingScreen = () => {
       <DatePickerModal
         locale="en"
         mode="single"
-        visible={datePickerVisible}
-        onDismiss={() => setDatePickerVisible(false)}
-        date={selectedDate || new Date()}
-        onConfirm={(params) => {
-          setSelectedDate(params.date);
-          setDatePickerVisible(false);
-        }}
-      />
-
-      <DatePickerModal
-        locale="en"
-        mode="single"
         visible={startDatePickerVisible}
         onDismiss={() => setStartDatePickerVisible(false)}
         date={printStartDate || new Date()}
@@ -568,6 +435,8 @@ const MedicationTrackingScreen = () => {
           setPrintStartDate(params.date);
           setStartDatePickerVisible(false);
         }}
+        presentationStyle="pageSheet"
+        animationType="slide"
       />
 
       <DatePickerModal
@@ -580,6 +449,8 @@ const MedicationTrackingScreen = () => {
           setPrintEndDate(params.date);
           setEndDatePickerVisible(false);
         }}
+        presentationStyle="pageSheet"
+        animationType="slide"
       />
 
       <AddAdditionalMedModal
@@ -599,7 +470,8 @@ const MedicationTrackingScreen = () => {
           fetchMedications();
         }}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 

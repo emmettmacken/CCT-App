@@ -1,3 +1,4 @@
+import { useTabRefresh } from "@/src/hooks/useTabRefresh";
 import { format, parseISO } from "date-fns";
 import React, { useEffect, useState } from "react";
 import {
@@ -59,40 +60,42 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
     "Unassigned",
   ]);
 
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "id, name, role, trial_name, trial_phase, trial_progress, weight, height, age, trial_id"
+        )
+        .eq("role", "patient");
+
+      if (error) throw error;
+
+      const formatted: ListPatient[] = (data ?? []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        trial_name: item.trial_name,
+        trial_phase: item.trial_phase,
+        trial_progress: item.trial_progress,
+      }));
+
+      setPatients(formatted);
+      setFilteredPatients(formatted);
+    } catch (error) {
+      console.error("Error fetching patients:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select(
-            "id, name, role, trial_name, trial_phase, trial_progress, weight, height, age, trial_id"
-          )
-          .eq("role", "patient");
-
-        if (error) throw error;
-
-        const formatted: ListPatient[] = (data ?? []).map((item) => ({
-          id: item.id,
-          name: item.name,
-          trial_name: item.trial_name,
-          trial_phase: item.trial_phase,
-          trial_progress: item.trial_progress,
-        }));
-
-        setPatients(formatted);
-        setFilteredPatients(formatted);
-      } catch (error) {
-        console.error("Error fetching patients:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPatients();
 
     const subscription = supabase
@@ -108,6 +111,8 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
       supabase.removeChannel(subscription);
     };
   }, []);
+
+  useTabRefresh(fetchPatients);
 
   useEffect(() => {
     const fetchTrials = async () => {
@@ -218,6 +223,7 @@ const PatientListScreen = ({ navigation }: { navigation: any }) => {
         visible={showProfileModal}
         onRequestClose={() => setShowProfileModal(false)}
         animationType="slide"
+        presentationStyle="pageSheet"
       >
         <SafeAreaView
           style={styles.modalContainer}
@@ -1205,6 +1211,7 @@ const PatientProfileScreen = ({
         visible={showOffsetModal}
         onRequestClose={() => setShowOffsetModal(false)}
         animationType="slide"
+        presentationStyle="pageSheet"
       >
         <SafeAreaView
           style={styles.modalContainer}
@@ -1249,6 +1256,7 @@ const PatientProfileScreen = ({
         visible={showMassEditApptModal}
         onRequestClose={() => setShowMassEditApptModal(false)}
         animationType="slide"
+        presentationStyle="pageSheet"
       >
         <SafeAreaView
           style={styles.modalContainer}
@@ -1481,6 +1489,7 @@ const PatientProfileScreen = ({
         visible={showMassEditMedModal}
         onRequestClose={() => setShowMassEditMedModal(false)}
         animationType="slide"
+        presentationStyle="pageSheet"
       >
         <SafeAreaView
           style={styles.modalContainer}
@@ -1676,6 +1685,7 @@ const PatientProfileScreen = ({
       <Modal
         visible={showAssignModal}
         onRequestClose={() => setShowAssignModal(false)}
+        presentationStyle="pageSheet"
         animationType="slide"
       >
         <SafeAreaView
@@ -1708,7 +1718,9 @@ const PatientProfileScreen = ({
             {/* Date input appears only after trial selected */}
             {selectedTrial && (
               <View style={{ marginTop: 20 }}>
-                <Text style={styles.label}>Enter Start Date (optional) : YYYY-MM-DD</Text>
+                <Text style={styles.label}>
+                  Enter Start Date (optional) : YYYY-MM-DD
+                </Text>
                 <TextInput
                   placeholder="YYYY-MM-DD"
                   value={startDateInput}
@@ -1746,6 +1758,7 @@ const PatientProfileScreen = ({
         visible={showEditMedModal}
         onRequestClose={() => setShowEditMedModal(false)}
         animationType="slide"
+        presentationStyle="pageSheet"
       >
         <SafeAreaView
           style={styles.modalContainer}
@@ -1814,6 +1827,7 @@ const PatientProfileScreen = ({
         visible={showEditApptModal}
         onRequestClose={() => setShowEditApptModal(false)}
         animationType="slide"
+        presentationStyle="pageSheet"
       >
         <SafeAreaView
           style={styles.modalContainer}

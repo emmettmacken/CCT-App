@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native'
 import { supabase } from "../../../backend/supabaseClient";
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import Button from '../../components/Button';
 
 export default function Profile() {

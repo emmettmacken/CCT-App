@@ -14,7 +14,9 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
   const [medicationLogs, setMedicationLogs] = useState<any[]>([]);
   const [sideEffects, setSideEffects] = useState<any[]>([]);
   const [logBookExpanded, setLogBookExpanded] = useState(false);
-  const [logType, setLogType] = useState<"trial" | "additional" | "side_effects">("trial");
+  const [logType, setLogType] = useState<
+    "trial" | "additional" | "side_effects"
+  >("trial");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
 
@@ -242,6 +244,8 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
               setSelectedDate(params.date);
               setDatePickerVisible(false);
             }}
+            presentationStyle="pageSheet"
+            animationType="slide"
           />
         </>
       )}

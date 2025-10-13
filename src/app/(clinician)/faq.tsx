@@ -1,24 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import { format, parseISO } from "date-fns";
+import React, { useEffect, useState } from "react";
+import { Alert, Modal, ScrollView, Text, View } from "react-native";
 import {
-  View,
-  Text,
-  ScrollView,
-  Modal,
-  Alert,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Card,
-  Button,
-  TextInput,
-  IconButton,
-  Divider,
   ActivityIndicator,
-} from 'react-native-paper';
-import { supabase } from '../../../backend/supabaseClient';
-import { format, parseISO } from 'date-fns';
-import { styles } from '../../styles/clinicianFaq.styles';
-import { FAQ } from '../../types/faq';
+  Button,
+  Card,
+  Divider,
+  IconButton,
+  TextInput,
+} from "react-native-paper";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { supabase } from "../../../backend/supabaseClient";
+import { useTabRefresh } from "../../hooks/useTabRefresh";
+import { styles } from "../../styles/clinicianFaq.styles";
+import { FAQ } from "../../types/faq";
 
 const ClinicianFAQScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -27,41 +25,40 @@ const ClinicianFAQScreen: React.FC = () => {
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [editingFaq, setEditingFaq] = useState<FAQ | null>(null);
-  const [questionInput, setQuestionInput] = useState<string>('');
-  const [answerInput, setAnswerInput] = useState<string>('');
+  const [questionInput, setQuestionInput] = useState<string>("");
+  const [answerInput, setAnswerInput] = useState<string>("");
+
+  const fetchFaqs = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("faqs")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setFaqs(data || []);
+    } catch (err) {
+      console.error("Error fetching FAQs:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let channel: any = null;
-
-    const fetchFaqs = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from<FAQ>('faqs')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setFaqs(data || []);
-      } catch (err) {
-        console.error('Error fetching FAQs:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchFaqs();
 
     // realtime subscription to keep clinician view in sync
     (async () => {
       channel = supabase
-        .channel('public:faqs')
+        .channel("public:faqs")
         .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'faqs' },
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "faqs" },
           (payload) => {
             setFaqs((prev) => {
-              // prepend new FAQ
               const exists = prev.some((f) => f.id === payload.new.id);
               if (exists) return prev;
               return [payload.new as FAQ, ...prev];
@@ -69,17 +66,19 @@ const ClinicianFAQScreen: React.FC = () => {
           }
         )
         .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'faqs' },
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "faqs" },
           (payload) => {
             setFaqs((prev) =>
-              prev.map((f) => (f.id === payload.new.id ? (payload.new as FAQ) : f))
+              prev.map((f) =>
+                f.id === payload.new.id ? (payload.new as FAQ) : f
+              )
             );
           }
         )
         .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'faqs' },
+          "postgres_changes",
+          { event: "DELETE", schema: "public", table: "faqs" },
           (payload) => {
             setFaqs((prev) => prev.filter((f) => f.id !== payload.old.id));
           }
@@ -92,10 +91,12 @@ const ClinicianFAQScreen: React.FC = () => {
     };
   }, []);
 
+  useTabRefresh(fetchFaqs);
+
   const openAddModal = () => {
     setEditingFaq(null);
-    setQuestionInput('');
-    setAnswerInput('');
+    setQuestionInput("");
+    setAnswerInput("");
     setModalVisible(true);
   };
 
@@ -108,7 +109,7 @@ const ClinicianFAQScreen: React.FC = () => {
 
   const handleSave = async () => {
     if (!questionInput.trim() || !answerInput.trim()) {
-      Alert.alert('Validation', 'Please fill both question and answer.');
+      Alert.alert("Validation", "Please fill both question and answer.");
       return;
     }
 
@@ -116,30 +117,32 @@ const ClinicianFAQScreen: React.FC = () => {
 
     try {
       if (editingFaq) {
-        // update existing FAQ
         const { error } = await supabase
-          .from('faqs')
+          .from("faqs")
           .update({
             question: questionInput.trim(),
             answer: answerInput.trim(),
             updated_at: new Date().toISOString(),
           })
-          .eq('id', editingFaq.id);
+          .eq("id", editingFaq.id);
 
         if (error) throw error;
 
-        // local update will be handled by realtime subscription, but update optimistically
         setFaqs((prev) =>
           prev.map((f) =>
             f.id === editingFaq.id
-              ? { ...f, question: questionInput.trim(), answer: answerInput.trim(), updated_at: new Date().toISOString() }
+              ? {
+                  ...f,
+                  question: questionInput.trim(),
+                  answer: answerInput.trim(),
+                  updated_at: new Date().toISOString(),
+                }
               : f
           )
         );
       } else {
-        // insert new FAQ
         const { data, error } = await supabase
-          .from('faqs')
+          .from("faqs")
           .insert([
             {
               question: questionInput.trim(),
@@ -151,7 +154,6 @@ const ClinicianFAQScreen: React.FC = () => {
 
         if (error) throw error;
 
-        // optimistic prepend (realtime will also add)
         if (data) {
           setFaqs((prev) => [data as FAQ, ...prev]);
         }
@@ -159,28 +161,30 @@ const ClinicianFAQScreen: React.FC = () => {
 
       setModalVisible(false);
     } catch (err) {
-      console.error('Error saving FAQ:', err);
-      Alert.alert('Error', 'Failed to save FAQ. Check console for details.');
+      console.error("Error saving FAQ:", err);
+      Alert.alert("Error", "Failed to save FAQ. Check console for details.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (faq: FAQ) => {
-    Alert.alert('Delete FAQ', 'Are you sure you want to delete this FAQ?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert("Delete FAQ", "Are you sure you want to delete this FAQ?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: 'Delete',
-        style: 'destructive',
+        text: "Delete",
+        style: "destructive",
         onPress: async () => {
           try {
-            const { error } = await supabase.from('faqs').delete().eq('id', faq.id);
+            const { error } = await supabase
+              .from("faqs")
+              .delete()
+              .eq("id", faq.id);
             if (error) throw error;
-            // optimistic removal; realtime will also remove
             setFaqs((prev) => prev.filter((f) => f.id !== faq.id));
           } catch (err) {
-            console.error('Error deleting FAQ:', err);
-            Alert.alert('Error', 'Failed to delete FAQ.');
+            console.error("Error deleting FAQ:", err);
+            Alert.alert("Error", "Failed to delete FAQ.");
           }
         },
       },
@@ -192,7 +196,10 @@ const ClinicianFAQScreen: React.FC = () => {
       <Card key={faq.id} style={styles.card}>
         <Card.Title
           title={faq.question}
-          subtitle={`Updated: ${format(parseISO(faq.updated_at || faq.created_at), 'PPpp')}`}
+          subtitle={`Updated: ${format(
+            parseISO(faq.updated_at || faq.created_at),
+            "PPpp"
+          )}`}
           titleNumberOfLines={2}
           subtitleNumberOfLines={1}
           right={(props) => (
@@ -221,10 +228,17 @@ const ClinicianFAQScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { paddingTop: insets.top }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[styles.safeArea, { paddingTop: insets.top }]}
+      edges={["top", "left", "right"]}
+    >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Edit Patient FAQs</Text>
-        <Button mode="contained" onPress={openAddModal} labelStyle={styles.addLabel}>
+        <Button
+          mode="contained"
+          onPress={openAddModal}
+          labelStyle={styles.addLabel}
+        >
           Add FAQ
         </Button>
       </View>
@@ -237,7 +251,9 @@ const ClinicianFAQScreen: React.FC = () => {
         <ScrollView contentContainerStyle={styles.container}>
           {faqs.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No FAQs found. Add one using the button above.</Text>
+              <Text style={styles.emptyText}>
+                No FAQs found. Add one using the button above.
+              </Text>
             </View>
           ) : (
             faqs.map((faq) => renderFaqItem(faq))
@@ -245,11 +261,24 @@ const ClinicianFAQScreen: React.FC = () => {
         </ScrollView>
       )}
 
-      <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
-        <SafeAreaView style={styles.modalSafeArea} edges={['top', 'left', 'right']}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <SafeAreaView
+          style={styles.modalSafeArea}
+          edges={["top", "left", "right"]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{editingFaq ? 'Edit FAQ' : 'Add FAQ'}</Text>
-            <IconButton icon="close" size={24} onPress={() => setModalVisible(false)} />
+            <Text style={styles.modalTitle}>
+              {editingFaq ? "Edit FAQ" : "Add FAQ"}
+            </Text>
+            <IconButton
+              icon="close"
+              size={24}
+              onPress={() => setModalVisible(false)}
+            />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContent}>
@@ -273,7 +302,11 @@ const ClinicianFAQScreen: React.FC = () => {
             />
 
             <View style={styles.modalButtons}>
-              <Button mode="outlined" onPress={() => setModalVisible(false)} style={styles.modalButton}>
+              <Button
+                mode="outlined"
+                onPress={() => setModalVisible(false)}
+                style={styles.modalButton}
+              >
                 Cancel
               </Button>
               <Button
@@ -283,7 +316,7 @@ const ClinicianFAQScreen: React.FC = () => {
                 disabled={saving}
                 style={styles.modalButton}
               >
-                {editingFaq ? 'Save changes' : 'Create FAQ'}
+                {editingFaq ? "Save changes" : "Create FAQ"}
               </Button>
             </View>
           </ScrollView>

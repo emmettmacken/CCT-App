@@ -1,5 +1,5 @@
 import { Link, router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
 import { styles } from "../../styles/home.styles";
+import { useTabRefresh } from "../../hooks/useTabRefresh";
 
 interface Appointment {
   id?: string;
@@ -43,8 +44,7 @@ const formatDate = (dateStr: string) => {
 const formatDate1 = (dateStr: string) => {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
-  return `${day}-${month}
-  -${year}`;
+  return `${day}-${month}-${year}`;
 };
 
 const formatTime = (timeStr: string | null) => {
@@ -64,146 +64,134 @@ export default function HomeScreen() {
   const [trialPhase, setTrialPhase] = useState<string | null>(null);
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        router.replace("/(auth)/login");
-        return;
-      }
+  const fetchAppointments = useCallback(async (userId: string) => {
+    setLoading(true);
 
-      const userId = data.session.user.id;
+    const { data, error } = await supabase.rpc("get_grouped_appointments", {
+      uid: userId,
+    });
 
-      // Fetch user profile
-      const { data: userData, error: userError } = await supabase
-        .from("profiles")
-        .select(
-          "id, name, age, height, weight, trial_id, consultant, trial_phase, trial_progress"
-        )
-        .eq("id", userId)
-        .single();
+    if (!data || error) {
+      console.error("Error fetching appointments:", error);
+      setAppointments([]);
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      if (userError) {
-        console.error("Error fetching profile:", userError);
-        setUser({ name: data.session.user.email });
-      } else {
-        setUser(userData);
-        setTrialPhase(userData?.trial_phase || null);
-      }
+      const upcoming = (data as AppointmentGroup[])
+        .map((group) => ({
+          date: group.date,
+          appointments: group.appointments || [],
+        }))
+        .filter((group) => {
+          const apptDate = new Date(group.date);
+          apptDate.setHours(0, 0, 0, 0);
+          return apptDate >= today;
+        });
 
-      // Fetch patient trial (start_date + trial details)
-      const { data: patientTrial, error: trialError } = await supabase
-        .from("patient_trials")
-        .select(
-          `
-          start_date,
-          trial:trials(number_of_cycles, cycle_duration_days, name)
-        `
-        )
-        .eq("patient_id", userId)
-        .single();
+      setAppointments(upcoming.slice(0, 3));
+    }
 
-      if (trialError) {
-        console.error("Error fetching patient trial:", trialError);
-      }
-
-      // Ensure proper date handling
-      const trialStartDate =
-        patientTrial?.start_date || "Start date unavailable";
-
-      // Set patient info
-      setPatientInfo({
-        age: userData?.age || 0,
-        height: userData?.height || 0,
-        weight: userData?.weight || 0,
-        trialId: userData?.trial_id || "",
-        consultant: userData?.consultant || "",
-        trialStartDate,
-      });
-
-      // Calculate trial progress if trial exists
-      if (patientTrial?.trial && patientTrial.start_date) {
-        const startDate = new Date(patientTrial.start_date);
-        const trialDetails = Array.isArray(patientTrial.trial)
-          ? patientTrial.trial[0]
-          : patientTrial.trial;
-
-        const numCycles = trialDetails?.number_of_cycles || 1;
-        const cycleLength = trialDetails?.cycle_duration_days || 1;
-        const today = new Date();
-
-        const diffDays = Math.floor(
-          (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const totalDays = numCycles * cycleLength;
-        const progress = Math.min(
-          Math.max((diffDays / totalDays) * 100, 0),
-          100
-        );
-
-        const currentCycle = Math.min(
-          Math.floor(diffDays / cycleLength) + 1,
-          numCycles
-        );
-
-        setTrialProgress(progress);
-
-        // UPDATE Supabase if progress changed
-        if (
-          Math.round(userData?.trial_progress ?? 0) !== Math.round(progress)
-        ) {
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({ trial_progress: Math.round(progress) })
-            .eq("id", userId);
-
-          if (updateError) {
-            console.error("Error updating trial_progress:", updateError);
-          }
-        }
-
-        // Keep trialPhase as profile's Induction or default to cycle count
-        if (!userData?.trial_phase) {
-          setTrialPhase(`Cycle ${currentCycle}`);
-        }
-      }
-
-      fetchAppointments(userId);
-    };
-
-    const fetchAppointments = async (userId: string) => {
-      setLoading(true);
-
-      const { data, error } = await supabase.rpc("get_grouped_appointments", {
-        uid: userId,
-      });
-
-      if (!data || error) {
-        console.error("Error fetching appointments:", error);
-        setAppointments([]);
-      } else {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const upcoming = (data as AppointmentGroup[])
-          .map((group) => ({
-            date: group.date,
-            appointments: group.appointments || [],
-          }))
-          .filter((group) => {
-            const apptDate = new Date(group.date);
-            apptDate.setHours(0, 0, 0, 0);
-            return apptDate >= today;
-          });
-
-        setAppointments(upcoming.slice(0, 3));
-      }
-
-      setLoading(false);
-    };
-
-    fetchSession();
+    setLoading(false);
   }, []);
+
+  // Move fetchSession outside useEffect
+  const fetchSession = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      router.replace("/(auth)/login");
+      return;
+    }
+
+    const userId = data.session.user.id;
+
+    // Fetch user profile
+    const { data: userData, error: userError } = await supabase
+      .from("profiles")
+      .select(
+        "id, name, age, height, weight, trial_id, consultant, trial_phase, trial_progress"
+      )
+      .eq("id", userId)
+      .single();
+
+    if (userError) {
+      console.error("Error fetching profile:", userError);
+      setUser({ name: data.session.user.email });
+    } else {
+      setUser(userData);
+      setTrialPhase(userData?.trial_phase || null);
+    }
+
+    // Fetch patient trial (start_date + trial details)
+    const { data: patientTrial, error: trialError } = await supabase
+      .from("patient_trials")
+      .select(
+        `
+        start_date,
+        trial:trials(number_of_cycles, cycle_duration_days, name)
+      `
+      )
+      .eq("patient_id", userId)
+      .single();
+
+    if (trialError) {
+      console.error("Error fetching patient trial:", trialError);
+    }
+
+    const trialStartDate =
+      patientTrial?.start_date || "Start date unavailable";
+
+    setPatientInfo({
+      age: userData?.age || 0,
+      height: userData?.height || 0,
+      weight: userData?.weight || 0,
+      trialId: userData?.trial_id || "",
+      consultant: userData?.consultant || "",
+      trialStartDate,
+    });
+
+    // Calculate trial progress
+    if (patientTrial?.trial && patientTrial.start_date) {
+      const startDate = new Date(patientTrial.start_date);
+      const trialDetails = Array.isArray(patientTrial.trial)
+        ? patientTrial.trial[0]
+        : patientTrial.trial;
+
+      const numCycles = trialDetails?.number_of_cycles || 1;
+      const cycleLength = trialDetails?.cycle_duration_days || 1;
+      const today = new Date();
+
+      const diffDays = Math.floor(
+        (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const totalDays = numCycles * cycleLength;
+      const progress = Math.min(Math.max((diffDays / totalDays) * 100, 0), 100);
+
+      const currentCycle = Math.min(Math.floor(diffDays / cycleLength) + 1, numCycles);
+
+      setTrialProgress(progress);
+
+      if (Math.round(userData?.trial_progress ?? 0) !== Math.round(progress)) {
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ trial_progress: Math.round(progress) })
+          .eq("id", userId);
+        if (updateError) console.error("Error updating trial_progress:", updateError);
+      }
+
+      if (!userData?.trial_phase) {
+        setTrialPhase(`Cycle ${currentCycle}`);
+      }
+    }
+
+    fetchAppointments(userId);
+  }, [fetchAppointments]);
+
+  useTabRefresh(fetchSession);
+
+  useEffect(() => {
+    fetchSession();
+  }, [fetchSession]);
 
   const renderProgressBar = () => (
     <View style={styles.progressContainer}>
@@ -224,21 +212,15 @@ export default function HomeScreen() {
       (appt) => appt.requirements || []
     );
 
-    // Get only the earliest appointment if all have times
     let times = "";
     const appointmentsWithTime = group.appointments.filter((appt) => appt.time);
-    if (
-      appointmentsWithTime.length === group.appointments.length &&
-      appointmentsWithTime.length > 0
-    ) {
+    if (appointmentsWithTime.length === group.appointments.length && appointmentsWithTime.length > 0) {
       const earliestAppt = appointmentsWithTime.reduce((earliest, current) =>
         new Date(current.time!) < new Date(earliest.time!) ? current : earliest
       );
       times = formatTime(earliestAppt.time);
     } else {
-      times = appointmentsWithTime
-        .map((appt) => formatTime(appt.time))
-        .join(", ");
+      times = appointmentsWithTime.map((appt) => formatTime(appt.time)).join(", ");
     }
 
     return (
@@ -305,36 +287,24 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Patient Information Card */}
         {patientInfo && (
           <View style={styles.patientCard}>
             <Text style={styles.patientCardTitle}>Patient Information</Text>
             <View style={styles.patientInfoRow}>
               <Text style={styles.infoText}>Age: {patientInfo.age}</Text>
-              <Text style={styles.infoText}>
-                Height: {patientInfo.height} cm
-              </Text>
+              <Text style={styles.infoText}>Height: {patientInfo.height} cm</Text>
             </View>
             <View style={styles.patientInfoRow}>
-              <Text style={styles.infoText}>
-                Weight: {patientInfo.weight} kg
-              </Text>
-              <Text style={styles.infoText}>
-                Trial ID: {patientInfo.trialId}
-              </Text>
+              <Text style={styles.infoText}>Weight: {patientInfo.weight} kg</Text>
+              <Text style={styles.infoText}>Trial ID: {patientInfo.trialId}</Text>
             </View>
             <View style={styles.patientInfoRow}>
-              <Text style={styles.infoText}>
-                Consultant: {patientInfo.consultant}
-              </Text>
-              <Text style={styles.infoText}>
-                Trial Start: {formatDate(patientInfo.trialStartDate)}
-              </Text>
+              <Text style={styles.infoText}>Consultant: {patientInfo.consultant}</Text>
+              <Text style={styles.infoText}>Trial Start: {formatDate(patientInfo.trialStartDate)}</Text>
             </View>
           </View>
         )}
 
-        {/* Render progress bar only if trial_phase includes "Induction" */}
         {trialPhase?.toLowerCase().includes("induction") && renderProgressBar()}
 
         <View style={styles.sectionHeader}>

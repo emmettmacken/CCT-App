@@ -100,4 +100,9 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#3f51b5',
   },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });

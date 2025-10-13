@@ -1,3 +1,4 @@
+import { useTabRefresh } from "@/src/hooks/useTabRefresh";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -41,33 +42,38 @@ export default function ClinicianCalendarScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const route = useRoute<any>();
+  const { patient, autoOpen, date } = route.params || {};
+
   // Fetch appointments joined with patient names
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*, profiles(name)")
-        .order("date", { ascending: true });
+  const fetchAppointments = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*, profiles(name)")
+      .order("date", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching appointments:", error);
-        setLoading(false);
-        return;
-      }
-
-      const formatted = data.map((appt: any) => ({
-        ...appt,
-        patient_name: appt.profiles?.name || "Unknown Patient",
-      }));
-
-      setAppointments(formatted);
-      setFilteredAppointments(formatted);
+    if (error) {
+      console.error("Error fetching appointments:", error);
       setLoading(false);
-    };
+      return;
+    }
 
+    const formatted = data.map((appt: any) => ({
+      ...appt,
+      patient_name: appt.profiles?.name || "Unknown Patient",
+    }));
+
+    setAppointments(formatted);
+    setFilteredAppointments(formatted);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchAppointments();
   }, []);
+
+  useTabRefresh(fetchAppointments);
 
   // Filter by patient name
   useEffect(() => {
@@ -96,15 +102,11 @@ export default function ClinicianCalendarScreen() {
     return marks;
   }, [filteredAppointments, selectedDate]);
 
-  // Handle date selection
   const handleDayPress = (day: { dateString: string }) => {
     setSelectedDate(day.dateString);
     setCurrentIndex(0);
     setModalVisible(true);
   };
-
-  const route = useRoute<any>();
-  const { patient, autoOpen, date } = route.params || {};
 
   useEffect(() => {
     if (autoOpen && patient && date) {
@@ -252,7 +254,7 @@ export default function ClinicianCalendarScreen() {
                   {(() => {
                     const times = currentGroup.appointments
                       .map((a) => a.time)
-                      .filter((t): t is string => !!t); // keep only non-null
+                      .filter((t): t is string => !!t);
                     if (times.length === 0) return null;
                     const earliestTime = times.sort((a, b) =>
                       a.localeCompare(b)

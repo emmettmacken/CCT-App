@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
 import { Calendar } from "react-native-calendars";
 import { supabase } from "../../../backend/supabaseClient";
 import { styles } from "../../styles/appointments.styles";
+import { useTabRefresh } from "../../hooks/useTabRefresh";
 
 type Appointment = {
   id: string;
@@ -36,33 +37,38 @@ export default function PatientCalendarScreen() {
   const [editingTime, setEditingTime] = useState(false);
   const [patientTime, setPatientTime] = useState<string | null>(null);
 
-  // Fetch only this patient's appointments
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+  // Fetch appointments function
+  const fetchAppointments = useCallback(async () => {
+    setLoading(true);
 
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("date", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching appointments:", error);
-        setLoading(false);
-        return;
-      }
-
-      setAppointments(data || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
-    };
+      return;
+    }
 
-    fetchAppointments();
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching appointments:", error);
+      setLoading(false);
+      return;
+    }
+
+    setAppointments(data || []);
+    setLoading(false);
   }, []);
+
+  useTabRefresh(fetchAppointments);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   // Marked dates for the calendar
   const markedDates = useMemo(() => {
@@ -246,9 +252,7 @@ export default function PatientCalendarScreen() {
                     marginTop: 10,
                   }}
                 >
-                  <Text style={{ fontWeight: "600", marginRight: 6 }}>
-                    Time:
-                  </Text>
+                  <Text style={{ fontWeight: "600", marginRight: 6 }}>Time:</Text>
                   {editingTime ? (
                     <TextInput
                       style={{
@@ -277,14 +281,9 @@ export default function PatientCalendarScreen() {
                 </View>
 
                 <Text style={{ marginTop: 6 }}>
-                  Location:{" "}
-                  {currentAppointment.location ||
-                    "University Hospital Limerick"}
+                  Location: {currentAppointment.location || "University Hospital Limerick"}
                 </Text>
-
-                <Text>
-                  Category: {currentAppointment.category || "General"}
-                </Text>
+                <Text>Category: {currentAppointment.category || "General"}</Text>
                 {currentAppointment.requirements && (
                   <Text>
                     Requirements: {currentAppointment.requirements.join(", ")}
@@ -303,21 +302,13 @@ export default function PatientCalendarScreen() {
                     }}
                   >
                     <TouchableOpacity onPress={prevAppointment}>
-                      <Ionicons
-                        name="chevron-back-circle"
-                        size={36}
-                        color="#007AFF"
-                      />
+                      <Ionicons name="chevron-back-circle" size={36} color="#007AFF" />
                     </TouchableOpacity>
                     <Text>
                       {currentIndex + 1} / {selectedDayAppointments.length}
                     </Text>
                     <TouchableOpacity onPress={nextAppointment}>
-                      <Ionicons
-                        name="chevron-forward-circle"
-                        size={36}
-                        color="#007AFF"
-                      />
+                      <Ionicons name="chevron-forward-circle" size={36} color="#007AFF" />
                     </TouchableOpacity>
                   </View>
                 )}

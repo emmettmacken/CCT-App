@@ -90,4 +90,26 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  welcomeText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 40,
+  },
+  nameText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
