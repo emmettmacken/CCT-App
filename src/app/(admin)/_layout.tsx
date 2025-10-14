@@ -32,6 +32,14 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
+            name="edit"
+            options={{
+              tabBarIcon: ({ color }) => (
+                <Ionicons name="pencil" size={28} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
             name="settings"
             options={{
               tabBarIcon: ({ color }) => (

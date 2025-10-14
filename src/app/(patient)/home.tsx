@@ -44,7 +44,8 @@ const formatDate = (dateStr: string) => {
 const formatDate1 = (dateStr: string) => {
   if (!dateStr) return "";
   const [year, month, day] = dateStr.split("-");
-  return `${day}-${month}-${year}`;
+  return `${day}-${month}
+  -${year}`;
 };
 
 const formatTime = (timeStr: string | null) => {

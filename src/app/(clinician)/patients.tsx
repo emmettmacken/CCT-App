@@ -257,7 +257,6 @@ const PatientProfileScreen = ({
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
-  const [notes, setNotes] = useState<ClinicianNote[]>([]);
   const [activeTab, setActiveTab] = useState("appointments");
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -312,9 +311,6 @@ const PatientProfileScreen = ({
   const [selectedMassApptId, setSelectedMassApptId] = useState<string | null>(
     null
   );
-  const [selectedApptField, setSelectedApptField] = useState("");
-  const [currentApptFieldValue, setCurrentApptFieldValue] = useState("");
-  const [newApptFieldValue, setNewApptFieldValue] = useState("");
   const [uniqueAppointments, setUniqueAppointments] = useState<any[]>([]);
 
   const [startDateInput, setStartDateInput] = useState("");
