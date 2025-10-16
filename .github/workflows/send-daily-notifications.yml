@@ -1,0 +1,24 @@
+name: Daily Notifications
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # 12:00 Dublin
+    - cron: '0 19 * * *'   # 20:00 Dublin
+    - cron: '0 20 * * *'   # fasting reminder 20:00 Dublin
+    - cron: '0 12 * * *'   # meds reminder 12:00 Dublin
+  workflow_dispatch:        # allows manual run from GitHub UI
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase Edge Function
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-morning"
+          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-evening"
+          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=fasting-evening"
+          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=meds-noon"
