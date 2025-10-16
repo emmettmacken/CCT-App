@@ -32,8 +32,6 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
   const fetchPatientLogs = async () => {
     if (!patientId) return;
 
-    console.log("Fetching logs for patientId:", patientId);
-
     // Fetch trial logs
     const { data: trialLogsData, error: trialError } = await supabase
       .from("trial_medication_logs")
@@ -42,7 +40,6 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
       .order("taken_at", { ascending: true });
 
     if (trialError) console.log("Error fetching trial logs:", trialError);
-    console.log("Trial logs fetched:", trialLogsData);
 
     // Fetch additional logs
     const { data: additionalLogsData, error: additionalError } = await supabase
@@ -53,7 +50,6 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
 
     if (additionalError)
       console.log("Error fetching additional logs:", additionalError);
-    console.log("Additional logs fetched:", additionalLogsData);
 
     // Merge and tag logs
     setMedicationLogs([
@@ -70,7 +66,6 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
 
     if (sideEffectsError)
       console.log("Error fetching side effects:", sideEffectsError);
-    console.log("Side effects fetched:", sideEffectsData);
 
     setSideEffects(sideEffectsData || []);
   };

@@ -95,14 +95,16 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    flexWrap: 'wrap',
   },
   seeAllText: {
     fontSize: 16,
     color: '#5b8af5',
     fontWeight: '500',
+    flexWrap: 'wrap',
   },
   appointmentsContainer: {
     marginBottom: 24,
