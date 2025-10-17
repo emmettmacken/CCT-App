@@ -2,23 +2,45 @@ name: Daily Notifications
 
 on:
   schedule:
-    - cron: '0 10 * * *'   # 11:00 Dublin
-    - cron: '0 18 * * *'   # 19:00 Dublin
-    - cron: '0 19 * * *'   # fasting reminder 20:00 Dublin
-    - cron: '0 11 * * *'   # meds reminder 12:00 Dublin
-  workflow_dispatch:        # allows manual run from GitHub UI
+    - cron: '0 10 * * *'   # 11:00 Dublin – Morning appointment reminder
+    - cron: '0 11 * * *'   # 12:00 Dublin – Medication reminder
+    - cron: '0 18 * * *'   # 19:00 Dublin – Evening appointment reminder
+    - cron: '0 19 * * *'   # 20:00 Dublin – Fasting reminder
+  workflow_dispatch:
 
 jobs:
-  notify:
+  appointments_morning:
+    if: github.event.schedule == '0 10 * * *'
     runs-on: ubuntu-latest
     steps:
-      - name: Call Supabase Edge Function
+      - name: Send morning appointment reminders
         run: |
           curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
           "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-morning"
-          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-evening"
-          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=fasting-evening"
+
+  meds_noon:
+    if: github.event.schedule == '0 11 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send medication reminders
+        run: |
           curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
           "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=meds-noon"
+
+  appointments_evening:
+    if: github.event.schedule == '0 18 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send evening appointment reminders
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-evening"
+
+  fasting_evening:
+    if: github.event.schedule == '0 19 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send fasting reminders
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=fasting-evening"
