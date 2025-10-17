@@ -2,10 +2,7 @@ import { Redirect } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import { supabase } from "../../backend/supabaseClient"; 
-import {
-  registerForPushNotificationsAsync,
-  scheduleAppointmentNotifications,
-} from "../notifications";
+import { registerPushToken } from "../notifications";
 
 export default function Index() {
   const [loading, setLoading] = useState(true);
@@ -14,26 +11,51 @@ export default function Index() {
   useEffect(() => {
     const init = async () => {
       try {
-        // 1 Register for push notifications
-        await registerForPushNotificationsAsync();
+        // 1 Register device push token
+        await registerPushToken();
 
-        // 2 Get current user
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-
+        // 2 Fetch current user
+        const { data: { user }, error } = await supabase.auth.getUser();
         if (error) {
           console.error("Error fetching user:", error.message);
+          setRedirectTo("/login");
+          return;
         }
 
-        // 3 Schedule notifications if logged in
-        if (user) {
-          await scheduleAppointmentNotifications(user.id);
-          setRedirectTo("../(patient)/home");
-        } else {
+        if (!user) {
           setRedirectTo("/login");
+          return;
         }
+
+        // 3 Fetch user's role from profiles table
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error fetching profile role:", profileError.message);
+          setRedirectTo("/login");
+          return;
+        }
+
+        // 4 Redirect based on role
+        switch (profile.role) {
+          case "patient":
+            setRedirectTo("../(patient)/home");
+            break;
+          case "clinician":
+            setRedirectTo("../(clinician)/home");
+            break;
+          case "admin":
+            setRedirectTo("../(admin)/home");
+            break;
+          default:
+            console.warn("Unknown role, redirecting to login");
+            setRedirectTo("/login");
+        }
+
       } catch (err) {
         console.error("Startup error:", err);
         setRedirectTo("/login");
@@ -45,29 +67,18 @@ export default function Index() {
     init();
   }, []);
 
-  // 4 Show a loading screen briefly while setting up
+  // Loading spinner
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#fff",
-        }}
-      >
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
 
-  // 5 Redirect to correct page once setup complete
+  // Redirect
   if (redirectTo) {
-    return (
-      <View style={{ flex: 1 }}>
-        <Redirect href={redirectTo as any} />
-      </View>
-    );
+    return <Redirect href={redirectTo as any} />;
   }
 
   return null;
