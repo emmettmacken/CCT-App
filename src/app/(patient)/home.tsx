@@ -1,5 +1,5 @@
 import { Link, router } from "expo-router";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,8 +9,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
-import { styles } from "../../styles/home.styles";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
+import { styles } from "../../styles/home.styles";
 
 interface Appointment {
   id?: string;
@@ -19,6 +19,7 @@ interface Appointment {
   title: string;
   location: string;
   requirements: string[];
+  fasting_required?: boolean;
 }
 
 interface AppointmentGroup {
@@ -139,8 +140,7 @@ export default function HomeScreen() {
       console.error("Error fetching patient trial:", trialError);
     }
 
-    const trialStartDate =
-      patientTrial?.start_date || "Start date unavailable";
+    const trialStartDate = patientTrial?.start_date || "Start date unavailable";
 
     setPatientInfo({
       age: userData?.age || 0,
@@ -168,7 +168,10 @@ export default function HomeScreen() {
       const totalDays = numCycles * cycleLength;
       const progress = Math.min(Math.max((diffDays / totalDays) * 100, 0), 100);
 
-      const currentCycle = Math.min(Math.floor(diffDays / cycleLength) + 1, numCycles);
+      const currentCycle = Math.min(
+        Math.floor(diffDays / cycleLength) + 1,
+        numCycles
+      );
 
       setTrialProgress(progress);
 
@@ -177,7 +180,8 @@ export default function HomeScreen() {
           .from("profiles")
           .update({ trial_progress: Math.round(progress) })
           .eq("id", userId);
-        if (updateError) console.error("Error updating trial_progress:", updateError);
+        if (updateError)
+          console.error("Error updating trial_progress:", updateError);
       }
 
       if (!userData?.trial_phase) {
@@ -215,13 +219,18 @@ export default function HomeScreen() {
 
     let times = "";
     const appointmentsWithTime = group.appointments.filter((appt) => appt.time);
-    if (appointmentsWithTime.length === group.appointments.length && appointmentsWithTime.length > 0) {
+    if (
+      appointmentsWithTime.length === group.appointments.length &&
+      appointmentsWithTime.length > 0
+    ) {
       const earliestAppt = appointmentsWithTime.reduce((earliest, current) =>
         new Date(current.time!) < new Date(earliest.time!) ? current : earliest
       );
       times = formatTime(earliestAppt.time);
     } else {
-      times = appointmentsWithTime.map((appt) => formatTime(appt.time)).join(", ");
+      times = appointmentsWithTime
+        .map((appt) => formatTime(appt.time))
+        .join(", ");
     }
 
     return (
@@ -252,6 +261,12 @@ export default function HomeScreen() {
               • {req}
             </Text>
           ))}
+          {/* Fasting Required Indicator */}
+          {group.appointments.some((a) => a.fasting_required) && (
+            <Text style={{ color: "green", fontWeight: "700" }}>
+              Fasting Required
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -293,15 +308,25 @@ export default function HomeScreen() {
             <Text style={styles.patientCardTitle}>Patient Information</Text>
             <View style={styles.patientInfoRow}>
               <Text style={styles.infoText}>Age: {patientInfo.age}</Text>
-              <Text style={styles.infoText}>Height: {patientInfo.height} cm</Text>
+              <Text style={styles.infoText}>
+                Height: {patientInfo.height} cm
+              </Text>
             </View>
             <View style={styles.patientInfoRow}>
-              <Text style={styles.infoText}>Weight: {patientInfo.weight} kg</Text>
-              <Text style={styles.infoText}>Trial ID: {patientInfo.trialId}</Text>
+              <Text style={styles.infoText}>
+                Weight: {patientInfo.weight} kg
+              </Text>
+              <Text style={styles.infoText}>
+                Trial ID: {patientInfo.trialId}
+              </Text>
             </View>
             <View style={styles.patientInfoRow}>
-              <Text style={styles.infoText}>Consultant: {patientInfo.consultant}</Text>
-              <Text style={styles.infoText}>Trial Start: {formatDate(patientInfo.trialStartDate)}</Text>
+              <Text style={styles.infoText}>
+                Consultant: {patientInfo.consultant}
+              </Text>
+              <Text style={styles.infoText}>
+                Trial Start: {formatDate(patientInfo.trialStartDate)}
+              </Text>
             </View>
           </View>
         )}

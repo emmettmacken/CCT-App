@@ -36,8 +36,7 @@ async function handleMode(mode: Mode) {
   const now = new Date();
 
   // Compute dates in YYYY-MM-DD
-  const tzOffsetMinutes = -new Date().getTimezoneOffset();
-  const tzToday = new Date(Date.now() + tzOffsetMinutes * 60 * 1000);
+  const tzToday = new Date();
   const yyyy = tzToday.getFullYear();
   const mm = String(tzToday.getMonth() + 1).padStart(2, '0');
   const dd = String(tzToday.getDate()).padStart(2, '0');
@@ -48,7 +47,7 @@ async function handleMode(mode: Mode) {
   const ty = tzTomorrow.getFullYear();
   const tm = String(tzTomorrow.getMonth() + 1).padStart(2, '0');
   const td = String(tzTomorrow.getDate()).padStart(2, '0');
-  const tomorrowStr = `${td}-${tm}-${ty}`;
+  const tomorrowStr = `${ty}-${tm}-${td}`;
 
   const messages: any[] = [];
 

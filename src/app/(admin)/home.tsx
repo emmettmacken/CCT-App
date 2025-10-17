@@ -18,12 +18,7 @@ import { supabase } from "../../../backend/supabaseClient";
 import { styles } from "../../styles/adminHome.styles";
 import { Assessment, TrialMedication } from "../../types/admin";
 
-const categoryOptions = [
-  "Clinical Exam",
-  "Lab Test",
-  "Imaging",
-  "Other",
-];
+const categoryOptions = ["Clinical Exam", "Lab Test", "Imaging", "Other"];
 
 const generateId = (prefix = "") =>
   `${prefix}${Math.random().toString(36).substring(2, 9)}`;
@@ -129,6 +124,7 @@ const AdminTrialTemplateScreen: React.FC = () => {
             ...a,
             scheduledDays: a.scheduled_days || [],
             applicableCycles: a.applicable_cycles || [],
+            fasting_required: a.fasting_required || false,
           })) || []
         );
 
@@ -203,6 +199,7 @@ const AdminTrialTemplateScreen: React.FC = () => {
       scheduledDays: [],
       applicableCycles: [],
       requirements: "",
+      fasting_required: false,
     });
   };
 
@@ -411,6 +408,7 @@ const AdminTrialTemplateScreen: React.FC = () => {
           ),
           applicable_cycles: a.applicableCycles || [],
           requirements: a.requirements || null,
+          fasting_required: a.fastingRequired || false,
         }));
         const { error: assError } = await supabase
           .from("trial_assessments")
@@ -667,6 +665,17 @@ const AdminTrialTemplateScreen: React.FC = () => {
                   style={[styles.input, { minHeight: 80 }]}
                 />
 
+                <Text style={styles.label}>Fasting Required?</Text>
+                <Switch
+                  value={assessmentDraft.fasting_required || false}
+                  onValueChange={(v) =>
+                    setAssessmentDraft((d) => ({
+                      ...(d as Assessment),
+                      fasting_required: v,
+                    }))
+                  }
+                />
+
                 <View style={{ flexDirection: "row", marginTop: 8 }}>
                   <Button
                     mode="outlined"
@@ -727,6 +736,9 @@ const AdminTrialTemplateScreen: React.FC = () => {
                     )}
                     {a.requirements && (
                       <Text>Requirements: {a.requirements}</Text>
+                    )}
+                    {a.fasting_required && (
+                      <Text>Fasting required: {String(a.fasting_required)}</Text>
                     )}
                   </Card.Content>
                 </Card>

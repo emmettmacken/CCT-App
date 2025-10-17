@@ -296,6 +296,16 @@ export default function ClinicianCalendarScreen() {
                     </Text>
                   )}
 
+                  {/* Fasting Required (any) */}
+                  {currentGroup.appointments.length > 0 && (
+                    <Text style={{ marginTop: 10 }}>
+                      Fasting Required:{" "}
+                      {currentGroup.appointments.some((a) => a.fasting_required)
+                        ? "Yes"
+                        : "No"}
+                    </Text>
+                  )}
+
                   {/* Patient navigation if multiple patients on same day */}
                   {groupedAppointments.length > 1 && (
                     <View

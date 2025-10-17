@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { supabase } from "../../../backend/supabaseClient";
-import { styles } from "../../styles/appointments.styles";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
+import { styles } from "../../styles/appointments.styles";
 
 type Appointment = {
   id: string;
@@ -41,7 +41,9 @@ export default function PatientCalendarScreen() {
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
       return;
@@ -252,7 +254,9 @@ export default function PatientCalendarScreen() {
                     marginTop: 10,
                   }}
                 >
-                  <Text style={{ fontWeight: "600", marginRight: 6 }}>Time:</Text>
+                  <Text style={{ fontWeight: "600", marginRight: 6 }}>
+                    Time:
+                  </Text>
                   {editingTime ? (
                     <TextInput
                       style={{
@@ -281,12 +285,23 @@ export default function PatientCalendarScreen() {
                 </View>
 
                 <Text style={{ marginTop: 6 }}>
-                  Location: {currentAppointment.location || "University Hospital Limerick"}
+                  Location:{" "}
+                  {currentAppointment.location ||
+                    "University Hospital Limerick"}
                 </Text>
-                <Text>Category: {currentAppointment.category || "General"}</Text>
+                <Text>
+                  Category: {currentAppointment.category || "General"}
+                </Text>
                 {currentAppointment.requirements && (
                   <Text>
                     Requirements: {currentAppointment.requirements.join(", ")}
+                  </Text>
+                )}
+                {currentAppointment.fasting_required && (
+                  <Text
+                    style={{ marginTop: 6, fontWeight: "700", color: "green" }}
+                  >
+                    Fasting required for this appointment.
                   </Text>
                 )}
 
@@ -302,13 +317,21 @@ export default function PatientCalendarScreen() {
                     }}
                   >
                     <TouchableOpacity onPress={prevAppointment}>
-                      <Ionicons name="chevron-back-circle" size={36} color="#007AFF" />
+                      <Ionicons
+                        name="chevron-back-circle"
+                        size={36}
+                        color="#007AFF"
+                      />
                     </TouchableOpacity>
                     <Text>
                       {currentIndex + 1} / {selectedDayAppointments.length}
                     </Text>
                     <TouchableOpacity onPress={nextAppointment}>
-                      <Ionicons name="chevron-forward-circle" size={36} color="#007AFF" />
+                      <Ionicons
+                        name="chevron-forward-circle"
+                        size={36}
+                        color="#007AFF"
+                      />
                     </TouchableOpacity>
                   </View>
                 )}

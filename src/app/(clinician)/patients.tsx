@@ -1,11 +1,12 @@
 import { useTabRefresh } from "@/src/hooks/useTabRefresh";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, set } from "date-fns";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -17,12 +18,7 @@ import OptionalMedicationAssigner from "../../components/OptionalMedicationAssig
 import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
 import PatientNotes from "../../components/PatientNotes";
 import { styles } from "../../styles/patients.styles";
-import {
-  Appointment,
-  ClinicianNote,
-  Medication,
-  Patient,
-} from "../../types/patients";
+import { Appointment, Medication, Patient } from "../../types/patients";
 
 type ListPatient = {
   id: string;
@@ -287,6 +283,9 @@ const PatientProfileScreen = ({
   const [editApptCategory, setEditApptCategory] = useState("");
   const [editApptLocation, setEditApptLocation] = useState("");
   const [editApptRequirements, setEditApptRequirements] = useState("");
+  const [editApptFastingRequired, setEditApptFastingRequired] = useState<
+    boolean | null
+  >(null);
 
   const [showOffsetModal, setShowOffsetModal] = useState(false);
   const [offsetDays, setOffsetDays] = useState(""); // user input for days
@@ -561,6 +560,7 @@ const PatientProfileScreen = ({
                           requirements: a.requirements
                             ? [a.requirements]
                             : null,
+                          fasting_required: a.fasting_required,
                           patient_trial_id: patientTrialId,
                         });
                       });
@@ -777,6 +777,7 @@ const PatientProfileScreen = ({
       ? appt.requirements.join(", ")
       : appt.requirements ?? "";
     setEditApptRequirements(reqs);
+    setEditApptFastingRequired(appt.fasting_required ?? false);
     setShowEditApptModal(true);
   };
 
@@ -898,6 +899,7 @@ const PatientProfileScreen = ({
       category: editApptCategory,
       location: editApptLocation,
       requirements: reqArray,
+      fasting_required: editApptFastingRequired,
     };
 
     if (editingAppointment) {
@@ -1875,6 +1877,14 @@ const PatientProfileScreen = ({
               onChangeText={setEditApptRequirements}
               mode="outlined"
               multiline
+              style={{ marginBottom: 10 }}
+            />
+            <Text style={{ marginBottom: 4, fontWeight: "500" }}>
+              Fasting Required?
+            </Text>
+            <Switch
+              value={editApptFastingRequired || false}
+              onValueChange={setEditApptFastingRequired}
               style={{ marginBottom: 10 }}
             />
 
