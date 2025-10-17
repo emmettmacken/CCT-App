@@ -15,6 +15,7 @@ backend/supabaseClient.js
 # Node / Expo
 node_modules/
 .expo/
+expo-env.d.ts
 
 # TypeScript build info
 *.tsbuildinfo
