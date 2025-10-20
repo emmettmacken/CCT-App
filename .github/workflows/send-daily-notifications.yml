@@ -2,15 +2,15 @@ name: Daily Notifications
 
 on:
   schedule:
-    - cron: '45 9 * * *'   # 11:00 Dublin – Morning appointment reminder
-    - cron: '45 10 * * *'   # 12:00 Dublin – Medication reminder
-    - cron: '45 17 * * *'   # 19:00 Dublin – Evening appointment reminder
-    - cron: '45 18 * * *'   # 20:00 Dublin – Fasting reminder
+    - cron: '45 9 * * *'   # 10:45 Dublin – Morning appointment reminder
+    - cron: '45 10 * * *'   # 11:45 Dublin – Medication reminder
+    - cron: '45 17 * * *'   # 18:45 Dublin – Evening appointment reminder
+    - cron: '45 18 * * *'   # 19:45 Dublin – Fasting reminder
   workflow_dispatch:
 
 jobs:
   appointments_morning:
-    if: github.event.schedule == '0 10 * * *'
+    if: github.event.schedule == '45 9 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send morning appointment reminders
@@ -19,7 +19,7 @@ jobs:
           "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-morning"
 
   meds_noon:
-    if: github.event.schedule == '0 11 * * *'
+    if: github.event.schedule == '45 10 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send medication reminders
@@ -28,7 +28,7 @@ jobs:
           "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=meds-noon"
 
   appointments_evening:
-    if: github.event.schedule == '0 18 * * *'
+    if: github.event.schedule == '45 17 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send evening appointment reminders
@@ -37,7 +37,7 @@ jobs:
           "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-evening"
 
   fasting_evening:
-    if: github.event.schedule == '0 19 * * *'
+    if: github.event.schedule == '45 18 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send fasting reminders
