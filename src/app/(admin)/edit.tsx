@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -14,326 +13,43 @@ import {
 } from "react-native";
 import { Button } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../../backend/supabaseClient";
 import { styles } from "../../styles/edit.styles";
-import { useTabRefresh } from "../../hooks/useTabRefresh";
+import { useMassEdits } from "../../hooks/useMassEdits";
 
 export default function MassEditsScreen() {
+  const {
+    trials,
+    uniqueAppointments,
+    uniqueTrialMeds,
+    selectedTrialId,
+    setSelectedTrialId,
+    selectedAppt,
+    setSelectedAppt,
+    selectedField,
+    setSelectedField,
+    currentFieldValue,
+    setCurrentFieldValue,
+    newFieldValue,
+    setNewFieldValue,
+    selectedMassTrialMedId,
+    setSelectedMassTrialMedId,
+    selectedMedField,
+    setSelectedMedField,
+    currentMedFieldValue,
+    setCurrentMedFieldValue,
+    newMedFieldValue,
+    setNewMedFieldValue,
+    handleSaveAppointments,
+    handleSaveMedications,
+    handleDeleteAppointments,
+    handleDeleteMedications,
+    // use the state-setting wrappers:
+    loadAppointmentsByTrial,
+    loadTrialMedications,
+  } = useMassEdits();
+
   const [showModal, setShowModal] = useState(false);
-  const [trials, setTrials] = useState<any[]>([]);
-  const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null);
-  const [uniqueAppointments, setUniqueAppointments] = useState<any[]>([]);
-  const [selectedAppt, setSelectedAppt] = useState<any | null>(null);
-  const [selectedField, setSelectedField] = useState<
-    "title" | "location" | "category" | "requirements" | ""
-  >("");
-  const [currentFieldValue, setCurrentFieldValue] = useState("");
-  const [newFieldValue, setNewFieldValue] = useState("");
-
-  // Fetch all trials
-  const fetchTrials = async () => {
-    const { data, error } = await supabase
-      .from("trials")
-      .select("id, name, trial_phase");
-    if (error) Alert.alert("Error fetching trials", error.message);
-    else setTrials(data || []);
-  };
-
-  // Medications
-  const [uniqueTrialMeds, setUniqueTrialMeds] = useState<any[]>([]);
-  const [selectedMassTrialMedId, setSelectedMassTrialMedId] = useState<
-    string | null
-  >(null);
-  const [selectedMedField, setSelectedMedField] = useState<
-    "name" | "frequency" | "notes" | ""
-  >("");
-  const [currentMedFieldValue, setCurrentMedFieldValue] = useState("");
-  const [newMedFieldValue, setNewMedFieldValue] = useState("");
   const [showMassEditMedModal, setShowMassEditMedModal] = useState(false);
-
-  // Fetch unique appointment titles for a selected trial
-  const fetchAppointmentsByTrial = async (trialId: string) => {
-    try {
-      const { data: patientTrials, error: ptError } = await supabase
-        .from("patient_trials")
-        .select("id")
-        .eq("trial_id", trialId);
-
-      if (ptError) throw ptError;
-      if (!patientTrials?.length) {
-        setUniqueAppointments([]);
-        return;
-      }
-
-      const patientTrialIds = patientTrials.map((pt) => pt.id);
-
-      // Fetch all appointments linked to those patient_trial_ids
-      const { data: appointments, error: apptError } = await supabase
-        .from("appointments")
-        .select("id, title, category, location, requirements, patient_trial_id")
-        .in("patient_trial_id", patientTrialIds);
-
-      if (apptError) throw apptError;
-
-      if (!appointments?.length) {
-        setUniqueAppointments([]);
-        return;
-      }
-
-      // Create unique list by title
-      const unique = Object.values(
-        appointments.reduce((acc, appt) => {
-          if (!acc[appt.title]) acc[appt.title] = appt;
-          return acc;
-        }, {} as Record<string, any>)
-      );
-
-      setUniqueAppointments(unique);
-    } catch (err: any) {
-      Alert.alert("Error fetching appointments", err.message);
-    }
-  };
-
-  // Fetch unique trial medications
-  const fetchTrialMedications = async (trialId: string) => {
-    try {
-      const { data: patientTrials, error: ptError } = await supabase
-        .from("patient_trials")
-        .select("id")
-        .eq("trial_id", trialId);
-      if (ptError) throw ptError;
-
-      if (!patientTrials || patientTrials.length === 0) {
-        setUniqueTrialMeds([]);
-        return;
-      }
-
-      const patientTrialIds = patientTrials.map((pt) => pt.id);
-
-      const { data: meds, error: medError } = await supabase
-        .from("trial_medications")
-        .select("id, name, frequency, notes, patient_trial_id")
-        .in("patient_trial_id", patientTrialIds);
-
-      if (medError) throw medError;
-
-      const unique = Object.values(
-        meds.reduce((acc, med) => {
-          if (!acc[med.name]) acc[med.name] = med;
-          return acc;
-        }, {} as Record<string, any>)
-      );
-
-      setUniqueTrialMeds(unique);
-    } catch (err: any) {
-      Alert.alert("Error fetching medications", err.message);
-    }
-  };
-
-  // Save changes to all appointments matching title & trial
-  const handleSave = async () => {
-    if (!selectedAppt || !selectedField || !newFieldValue.trim()) {
-      Alert.alert(
-        "Missing input",
-        "Please select all fields and enter a value."
-      );
-      return;
-    }
-
-    try {
-      const { data: patientTrials, error: ptError } = await supabase
-        .from("patient_trials")
-        .select("id")
-        .eq("trial_id", selectedTrialId);
-
-      if (ptError) throw ptError;
-      if (!patientTrials?.length) {
-        Alert.alert("No patients found for this trial.");
-        return;
-      }
-
-      const patientTrialIds = patientTrials.map((pt) => pt.id);
-
-      let valueToUpdate: any = newFieldValue;
-      if (selectedField === "requirements") {
-        valueToUpdate = newFieldValue
-          .split(",")
-          .map((v) => v.trim())
-          .filter(Boolean);
-      }
-
-      const { error: updateError } = await supabase
-        .from("appointments")
-        .update({ [selectedField]: valueToUpdate })
-        .in("patient_trial_id", patientTrialIds)
-        .eq("title", selectedAppt.title);
-
-      if (updateError) throw updateError;
-
-      Alert.alert(
-        "Success",
-        `Updated all "${selectedAppt.title}" appointments for this trial.`
-      );
-      setShowModal(false);
-      resetState();
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-      console.error("Mass update failed:", err);
-    }
-  };
-
-  // Save medications
-  const handleSaveMedications = async () => {
-    if (
-      !selectedMassTrialMedId ||
-      !selectedMedField ||
-      !newMedFieldValue.trim()
-    )
-      return;
-
-    const med = uniqueTrialMeds.find((m) => m.id === selectedMassTrialMedId);
-    if (!med || !selectedTrialId) return;
-
-    try {
-      const { data: patientTrials, error: ptError } = await supabase
-        .from("patient_trials")
-        .select("id")
-        .eq("trial_id", selectedTrialId);
-      if (ptError) throw ptError;
-
-      const patientTrialIds = patientTrials.map((pt) => pt.id);
-
-      const { error } = await supabase
-        .from("trial_medications")
-        .update({ [selectedMedField]: newMedFieldValue })
-        .in("patient_trial_id", patientTrialIds)
-        .eq("name", med.name);
-
-      if (error) throw error;
-
-      Alert.alert(
-        "Success",
-        `Updated all "${med.name}" medications in this trial.`
-      );
-      setShowMassEditMedModal(false);
-      await fetchTrialMedications(selectedTrialId);
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-    }
-  };
-
-  // Delete all appointments for that trial with this title
-  const handleDelete = async () => {
-    if (!selectedTrialId || !selectedAppt) return;
-
-    Alert.alert(
-      "Confirm Delete",
-      `Delete all "${selectedAppt.title}" appointments for this trial?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { data: patientTrials, error: ptError } = await supabase
-                .from("patient_trials")
-                .select("id")
-                .eq("trial_id", selectedTrialId);
-
-              if (ptError) throw ptError;
-              if (!patientTrials?.length) {
-                Alert.alert("No patients found for this trial.");
-                return;
-              }
-
-              const patientTrialIds = patientTrials.map((pt) => pt.id);
-
-              const { error: delError } = await supabase
-                .from("appointments")
-                .delete()
-                .in("patient_trial_id", patientTrialIds)
-                .eq("title", selectedAppt.title);
-
-              if (delError) throw delError;
-
-              Alert.alert("Deleted", "All matching appointments removed.");
-              setShowModal(false);
-              resetState();
-            } catch (err: any) {
-              Alert.alert("Error", err.message);
-              console.error("Delete failed:", err);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  // Delete medications
-  const handleDeleteMedications = async () => {
-    const med = uniqueTrialMeds.find((m) => m.id === selectedMassTrialMedId);
-    if (!med || !selectedTrialId) return;
-
-    Alert.alert(
-      "Confirm Delete",
-      `Are you sure you want to delete all "${med.name}" medications in this trial?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { data: patientTrials, error: ptError } = await supabase
-                .from("patient_trials")
-                .select("id")
-                .eq("trial_id", selectedTrialId);
-              if (ptError) throw ptError;
-
-              const patientTrialIds = patientTrials.map((pt) => pt.id);
-
-              const { error } = await supabase
-                .from("trial_medications")
-                .delete()
-                .in("patient_trial_id", patientTrialIds)
-                .eq("name", med.name);
-
-              if (error) throw error;
-
-              Alert.alert("Success", `Deleted all "${med.name}" medications.`);
-              setShowMassEditMedModal(false);
-              await fetchTrialMedications(selectedTrialId);
-            } catch (err: any) {
-              Alert.alert("Error", err.message);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const resetState = () => {
-    setSelectedTrialId(null);
-    setUniqueAppointments([]);
-    setSelectedAppt(null);
-    setSelectedField("");
-    setCurrentFieldValue("");
-    setNewFieldValue("");
-  };
-
-  useTabRefresh(() => {
-    resetState();
-    fetchTrials();
-    if (selectedTrialId) {
-      fetchAppointmentsByTrial(selectedTrialId);
-      fetchTrialMedications(selectedTrialId);
-    }
-  });
-
-  useEffect(() => {
-    fetchTrials();
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -353,7 +69,6 @@ export default function MassEditsScreen() {
         Mass edit all patient trial medications
       </Button>
 
-      {/* Mass Edit Appointments Modal */}
       <Modal
         visible={showModal}
         onRequestClose={() => setShowModal(false)}
@@ -394,7 +109,7 @@ export default function MassEditsScreen() {
                           setSelectedField("");
                           setCurrentFieldValue("");
                           setNewFieldValue("");
-                          fetchAppointmentsByTrial(trial.id);
+                          loadAppointmentsByTrial(trial.id);
                         }}
                       >
                         <Text
@@ -412,9 +127,7 @@ export default function MassEditsScreen() {
                   {/* Step 2: Choose Appointment */}
                   {selectedTrialId && (
                     <>
-                      <Text style={styles.label}>
-                        Select Appointment Title:
-                      </Text>
+                      <Text style={styles.label}>Select Appointment Title:</Text>
                       {uniqueAppointments.length === 0 ? (
                         <Text>No appointments found for this trial.</Text>
                       ) : (
@@ -462,13 +175,7 @@ export default function MassEditsScreen() {
                               selectedField === field && styles.optionSelected,
                             ]}
                             onPress={() => {
-                              setSelectedField(
-                                field as
-                                  | "title"
-                                  | "category"
-                                  | "location"
-                                  | "requirements"
-                              );
+                              setSelectedField(field);
                               const appt = uniqueAppointments.find(
                                 (a) => a.id === selectedAppt.id
                               );
@@ -537,7 +244,7 @@ export default function MassEditsScreen() {
                   <Button
                     buttonColor="#47b53fff"
                     mode="contained"
-                    onPress={handleSave}
+                    onPress={handleSaveAppointments}
                     disabled={
                       !selectedTrialId ||
                       !selectedAppt ||
@@ -550,7 +257,7 @@ export default function MassEditsScreen() {
                   <Button
                     mode="contained"
                     buttonColor="#d11a2a"
-                    onPress={handleDelete}
+                    onPress={handleDeleteAppointments}
                     disabled={!selectedAppt}
                   >
                     Delete
@@ -562,7 +269,6 @@ export default function MassEditsScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Mass Edit Medications Modal */}
       <Modal
         visible={showMassEditMedModal}
         onRequestClose={() => setShowMassEditMedModal(false)}
@@ -594,7 +300,7 @@ export default function MassEditsScreen() {
                     setSelectedMedField("");
                     setCurrentMedFieldValue("");
                     setNewMedFieldValue("");
-                    fetchTrialMedications(trial.id);
+                    loadTrialMedications(trial.id);
                   }}
                 >
                   <Text
@@ -655,9 +361,7 @@ export default function MassEditsScreen() {
                       selectedMedField === field && styles.optionSelected,
                     ]}
                     onPress={() => {
-                      setSelectedMedField(
-                        field as "name" | "frequency" | "notes"
-                      );
+                      setSelectedMedField(field);
                       const med = uniqueTrialMeds.find(
                         (m) => m.id === selectedMassTrialMedId
                       );

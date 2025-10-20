@@ -1,4 +1,3 @@
-// components/BasicTrialInfoCard.tsx
 import React from "react";
 import { Card, TextInput } from "react-native-paper";
 import { styles } from "../styles/adminHome.styles";
