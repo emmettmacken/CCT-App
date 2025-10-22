@@ -15,8 +15,10 @@ jobs:
     steps:
       - name: Send morning appointment reminders
         run: |
-          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-morning"
+          curl -L -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/send-daily-notifications?mode=appointments-morning" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"name":"Functions"}'
 
   meds_noon:
     if: github.event.schedule == '45 10 * * *'
@@ -24,8 +26,10 @@ jobs:
     steps:
       - name: Send medication reminders
         run: |
-          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=meds-noon"
+          curl -L -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/send-daily-notifications?mode=meds-noon" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"name":"Functions"}'
 
   appointments_evening:
     if: github.event.schedule == '45 17 * * *'
@@ -33,14 +37,17 @@ jobs:
     steps:
       - name: Send evening appointment reminders
         run: |
-          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=appointments-evening"
-
+          curl -L -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/send-daily-notifications?mode=appointments-evening" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"name":"Functions"}'
   fasting_evening:
     if: github.event.schedule == '45 18 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send fasting reminders
         run: |
-          curl -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          "https://ulsczwqtjuprqwvudxwx.functions.supabase.co/send-daily-notifications?mode=fasting-evening"
+          curl -L -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/send-daily-notifications?mode=fasting-evening" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data '{"name":"Functions"}'
