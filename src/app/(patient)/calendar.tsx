@@ -24,6 +24,7 @@ type Appointment = {
   location: string | null;
   requirements: string[] | null;
   category: string | null;
+  fasting_required: boolean;
 };
 
 export default function PatientCalendarScreen() {

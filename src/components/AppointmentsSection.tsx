@@ -2,8 +2,8 @@ import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import { Text, View } from "react-native";
 import { Button, Card, List } from "react-native-paper";
-import { styles } from "../../styles/clinicianHome.styles";
-import { Appointment } from "../../types/clinician";
+import { styles } from "../styles/clinicianHome.styles";
+import { Appointment } from "../types/clinician";
 
 interface Props {
   appointments: Appointment[];

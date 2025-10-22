@@ -22,6 +22,7 @@ type Appointment = {
   title: string;
   location: string | null;
   requirements: string[] | null;
+  fasting_required: boolean;
   category: string | null;
   patient_name?: string;
 };

@@ -1,4 +1,3 @@
-// src/hooks/useMassEdits.ts
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { useTabRefresh } from "./useTabRefresh";

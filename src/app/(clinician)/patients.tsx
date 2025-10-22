@@ -20,6 +20,28 @@ import PatientNotes from "../../components/PatientNotes";
 import { styles } from "../../styles/patients.styles";
 import { Appointment, Medication, Patient } from "../../types/patients";
 
+// Types for inserts to avoid implicit any[]
+type AppointmentInsert = {
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  time: string | null;
+  title: string;
+  category: string;
+  requirements: string[] | null;
+  fasting_required?: boolean;
+  patient_trial_id: string;
+};
+
+type TrialMedicationInsert = {
+  user_id: string;
+  name: string;
+  frequency: string | null;
+  scheduled_date: string; // YYYY-MM-DD
+  created_at: string;
+  notes: string;
+  patient_trial_id: string;
+};
+
 type ListPatient = {
   id: string;
   name: string | null;
@@ -300,7 +322,13 @@ const PatientProfileScreen = ({
     null
   );
   const [selectedField, setSelectedField] = useState<
-    "name" | "frequency" | "notes"
+    | "name"
+    | "frequency"
+    | "notes"
+    | "title"
+    | "category"
+    | "location"
+    | "requirements"
   >("name");
   const [currentFieldValue, setCurrentFieldValue] = useState("");
   const [newFieldValue, setNewFieldValue] = useState("");
@@ -515,7 +543,7 @@ const PatientProfileScreen = ({
                   "Assigned trial but could not fetch assessments."
                 );
               } else if (assessments && assessments.length > 0) {
-                const appointmentsToInsert = [];
+                const appointmentsToInsert: AppointmentInsert[] = [];
 
                 // Fetch trial details (number_of_cycles + cycle_duration_days)
                 const { data: trialData, error: trialError } = await supabase
@@ -543,8 +571,8 @@ const PatientProfileScreen = ({
                       ? a.scheduled_days.map(Number)
                       : [];
 
-                    applicableCycles.forEach((cycle) => {
-                      scheduledDays.forEach((dayNum) => {
+                    applicableCycles.forEach((cycle: number) => {
+                      scheduledDays.forEach((dayNum: number) => {
                         if (Number.isNaN(dayNum) || Number.isNaN(cycle)) return;
 
                         const offset =
@@ -632,7 +660,7 @@ const PatientProfileScreen = ({
                   return;
                 }
 
-                const medsToInsert = [];
+                const medsToInsert: TrialMedicationInsert[] = [];
 
                 medsTemplate.forEach((m) => {
                   const rawApplicableCycles = Array.isArray(m.applicable_cycles)
@@ -642,11 +670,23 @@ const PatientProfileScreen = ({
                     ? m.scheduled_days
                     : [];
 
-                  const uniqueCycles = [...new Set(rawApplicableCycles)];
-                  const uniqueDays = [...new Set(rawScheduledDays)];
+                  const uniqueCycles: number[] = Array.from(
+                    new Set(
+                      (rawApplicableCycles as any[])
+                        .map((x) => Number(x))
+                        .filter((n) => Number.isFinite(n))
+                    )
+                  );
+                  const uniqueDays: number[] = Array.from(
+                    new Set(
+                      (rawScheduledDays as any[])
+                        .map((x) => Number(x))
+                        .filter((n) => Number.isFinite(n))
+                    )
+                  );
 
-                  uniqueCycles.forEach((cycle) => {
-                    uniqueDays.forEach((dayNum) => {
+                  uniqueCycles.forEach((cycle: number) => {
+                    uniqueDays.forEach((dayNum: number) => {
                       const cycleOffset = (cycle - 1) * cycleDurationDays;
                       const dayOffset = dayNum - 1;
                       const totalOffset = cycleOffset + dayOffset;
@@ -973,6 +1013,17 @@ const PatientProfileScreen = ({
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text>Updating patient data...</Text>
+      </View>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <View style={styles.center}>
+        <Text>Patient not found</Text>
+        <Button mode="text" onPress={onClose}>
+          Close
+        </Button>
       </View>
     );
   }

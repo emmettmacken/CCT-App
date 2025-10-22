@@ -149,7 +149,8 @@ export const MedicationSection: React.FC<Props> = ({
             onChangeText={(t) =>
               setMedDraft((d) => ({
                 ...(d as TrialMedication),
-                specialConditions: t || null,
+                // Use undefined (not null) to satisfy Partial<TrialMedication>
+                specialConditions: t || undefined,
               }))
             }
             mode="outlined"

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import { Card, Button, List, IconButton } from 'react-native-paper';
-import { AdditionalMedication, MedicationLog } from '../../types/medications';
+import { AdditionalMedication, MedicationLog } from '../types/medications';
 import { format, parseISO } from 'date-fns';
-import { styles } from '../../styles/medications.styles';
+import { styles } from '../styles/medications.styles';
 
 interface Props {
   additionalMeds: AdditionalMedication[];

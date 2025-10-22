@@ -236,7 +236,7 @@ const PatientMedicationLogBook: React.FC<PatientMedicationLogBookProps> = ({
             onDismiss={() => setDatePickerVisible(false)}
             date={selectedDate || new Date()}
             onConfirm={(params) => {
-              setSelectedDate(params.date);
+              setSelectedDate(params.date ?? null);
               setDatePickerVisible(false);
             }}
             presentationStyle="pageSheet"

@@ -15,8 +15,8 @@ import { supabase } from "../../../backend/supabaseClient";
 import { AddAdditionalMedModal } from "../../components/AddAdditionalMedModal";
 import SideEffectModal from "../../components/AddSideEffect";
 import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
-import { AdditionalMedicationsSection } from "../../components/ui/AdditionalMedicationsSection";
-import { TrialMedicationsSection } from "../../components/ui/TrialMedicationsSections";
+import { AdditionalMedicationsSection } from "../../components/AdditionalMedicationsSection";
+import { TrialMedicationsSection } from "../../components/TrialMedicationsSections";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
 import { styles } from "../../styles/medications.styles";
 import { AdditionalMedication, Medication } from "../../types/medications";
@@ -432,7 +432,7 @@ const MedicationTrackingScreen = () => {
         onDismiss={() => setStartDatePickerVisible(false)}
         date={printStartDate || new Date()}
         onConfirm={(params) => {
-          setPrintStartDate(params.date);
+          setPrintStartDate(params.date ?? null);
           setStartDatePickerVisible(false);
         }}
         presentationStyle="pageSheet"
@@ -446,7 +446,7 @@ const MedicationTrackingScreen = () => {
         onDismiss={() => setEndDatePickerVisible(false)}
         date={printEndDate || new Date()}
         onConfirm={(params) => {
-          setPrintEndDate(params.date);
+          setPrintEndDate(params.date ?? null);
           setEndDatePickerVisible(false);
         }}
         presentationStyle="pageSheet"

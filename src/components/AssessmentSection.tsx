@@ -102,7 +102,7 @@ export const AssessmentSection: React.FC<Props> = ({
           <DropDownPicker
             multiple={true}
             open={openDayDropdown}
-            value={assessmentDraft.scheduledDays}
+            value={assessmentDraft.scheduledDays ?? null}
             items={dayItems}
             setOpen={setOpenDayDropdown}
             setValue={(callback) =>
@@ -125,15 +125,14 @@ export const AssessmentSection: React.FC<Props> = ({
             }}
           >
             {cycleOptions.map((c) => {
-              const selected = (
-                assessmentDraft.applicableCycles || []
-              ).includes(c);
+              const draftCycles: number[] = ((assessmentDraft as any).applicableCycles) || [];
+              const selected = draftCycles.includes(c);
               return (
                 <Button
                   key={c}
                   mode={selected ? "contained" : "outlined"}
                   onPress={() => {
-                    const aps = new Set(assessmentDraft.applicableCycles || []);
+                    const aps = new Set(draftCycles);
                     if (aps.has(c)) aps.delete(c);
                     else aps.add(c);
                     setAssessmentDraft((d) => ({
@@ -151,7 +150,7 @@ export const AssessmentSection: React.FC<Props> = ({
 
           <TextInput
             label="Requirements?"
-            value={assessmentDraft.requirements || ""}
+            value={(assessmentDraft as any).requirements || ""}
             onChangeText={(t) =>
               setAssessmentDraft((d) => ({
                 ...(d as Assessment),

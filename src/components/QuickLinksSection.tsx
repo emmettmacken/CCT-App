@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity } from 'react-native';
 import { Card, List } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { styles } from '../../styles/clinicianHome.styles';
+import { styles } from '../styles/clinicianHome.styles';
 
 const QuickLinksSection = () => {
   const navigation = useNavigation<any>();

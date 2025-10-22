@@ -11,7 +11,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ patientId }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
 
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch notes from profiles.notes
   const fetchNotes = async () => {

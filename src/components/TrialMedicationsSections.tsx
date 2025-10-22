@@ -1,10 +1,9 @@
-// TrialMedicationsSection.tsx
 import { format, parseISO } from "date-fns";
 import React from "react";
 import { Text, View } from "react-native";
 import { Button, Card, List, RadioButton } from "react-native-paper";
-import { styles } from "../../styles/medications.styles";
-import { Medication, MedicationLog } from "../../types/medications";
+import { styles } from "../styles/medications.styles";
+import { Medication, MedicationLog } from "../types/medications";
 
 interface Props {
   trialMedications: Medication[];

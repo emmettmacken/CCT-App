@@ -1,4 +1,5 @@
 export interface Appointment {
+  profiles: any;
   location: any;
   title: Title;
   id: string;

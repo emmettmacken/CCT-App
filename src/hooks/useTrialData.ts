@@ -269,6 +269,8 @@ export const useTrialData = () => {
     assessmentDraft,
     setAssessmentDraft,
     editingAssessmentId,
+    // Expose setter for components that clear editing state
+    setEditingAssessmentId,
     startAddAssessment,
     editAssessment,
     saveAssessmentDraft,
@@ -298,8 +300,11 @@ export const useTrialData = () => {
     setSelectedTrialId,
     openTrialDropdown,
     setOpenTrialDropdown,
+    // Alias day dropdown state to prop names expected by components
     isDayDropdownOpen,
     setIsDayDropdownOpen,
+    openDayDropdown: isDayDropdownOpen,
+    setOpenDayDropdown: setIsDayDropdownOpen,
     dayItems,
     cycleOptions,
 

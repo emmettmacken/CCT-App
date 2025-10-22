@@ -1,4 +1,3 @@
-// hooks/useMedications.ts
 import { useEffect, useState } from 'react';
 import { supabase } from '../../backend/supabaseClient';
 import { Medication, MedicationLog, AdditionalMedication } from '../types/medications';

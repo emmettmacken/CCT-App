@@ -85,6 +85,7 @@ export const updateAllAppointments = async (
     .select("id")
     .eq("trial_id", trialId);
   if (ptError) throw ptError;
+  if (!patientTrials || patientTrials.length === 0) return;
   const patientTrialIds = patientTrials.map((pt) => pt.id);
 
   const { error } = await supabase
@@ -106,7 +107,7 @@ export const updateAllMedications = async (
     .select("id")
     .eq("trial_id", trialId);
   if (ptError) throw ptError;
-
+  if (!patientTrials || patientTrials.length === 0) return;
   const patientTrialIds = patientTrials.map((pt) => pt.id);
   const { error } = await supabase
     .from("trial_medications")
@@ -124,6 +125,7 @@ export const deleteAllAppointments = async (
     .from("patient_trials")
     .select("id")
     .eq("trial_id", trialId);
+  if (!patientTrials || patientTrials.length === 0) return;
   const patientTrialIds = patientTrials.map((pt) => pt.id);
 
   await supabase
@@ -141,6 +143,7 @@ export const deleteAllMedications = async (
     .from("patient_trials")
     .select("id")
     .eq("trial_id", trialId);
+  if (!patientTrials || patientTrials.length === 0) return;
   const patientTrialIds = patientTrials.map((pt) => pt.id);
 
   await supabase

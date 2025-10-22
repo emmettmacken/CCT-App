@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 import { supabase } from "../../../backend/supabaseClient";
-import Button from "../../components/Button";
+import Button from "../../components/ui/Button";
 import { styles } from "../../styles/auth.styles";
 
 const SignUpScreen = () => {

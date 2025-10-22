@@ -35,7 +35,6 @@ const AdminTrialTemplateScreen: React.FC = () => {
     setNotes,
     setSelectedTrialId,
     setOpenTrialDropdown,
-    saving,
     saveTemplate,
   } = trialData;
 
@@ -84,12 +83,12 @@ const AdminTrialTemplateScreen: React.FC = () => {
         <Button
           mode="contained"
           onPress={saveTemplate}
-          disabled={saving}
+          disabled={false}
           style={{ marginVertical: 16 }}
         >
-          {saving ? "Saving..." : "Save Trial Template"}
+          Save Trial Template
         </Button>
-      </ScrollView>
+        </ScrollView>
     </SafeAreaView>
   );
 };

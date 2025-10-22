@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ScrollView, Text, View, ActivityIndicator } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../backend/supabaseClient";
+import AppointmentsSection from "../../components/AppointmentsSection";
+import QuickLinksSection from "../../components/QuickLinksSection";
+import { useTabRefresh } from "../../hooks/useTabRefresh";
 import { styles } from "../../styles/clinicianHome.styles";
-import AppointmentsSection from "../../components/ui/AppointmentsSection";
-import QuickLinksSection from "../../components/ui/QuickLinksSection";
 import { Appointment } from "../../types/clinician";
-import { useTabRefresh } from "../../hooks/useTabRefresh"; 
 
 const ClinicianHomeScreen = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);

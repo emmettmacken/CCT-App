@@ -1,4 +1,7 @@
 export interface Patient {
+  trial_id: string;
+  height: ReactNode;
+  weight: ReactNode;
   id: string;
   name: string;
   age: number;
@@ -8,6 +11,9 @@ export interface Patient {
 }
 
 export interface Appointment {
+  fasting_required: boolean;
+  requirements: any;
+  category: string;
   location: any;
   title: any;
   id: string;
@@ -19,6 +25,7 @@ export interface Appointment {
 }
 
 export interface Medication {
+  scheduled_date: string;
   id: string;
   name: string;
   dosage: string;
