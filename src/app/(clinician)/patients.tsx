@@ -1,5 +1,5 @@
 import { useTabRefresh } from "@/src/hooks/useTabRefresh";
-import { format, parseISO, set } from "date-fns";
+import { format, parseISO } from "date-fns";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -1776,7 +1776,7 @@ const PatientProfileScreen = ({
                   onChangeText={setStartDateInput}
                 />
                 <Text style={styles.hintText}>
-                  Leave blank to use today’s date.
+                  Leave blank to use today's date.
                 </Text>
               </View>
             )}

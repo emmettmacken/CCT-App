@@ -132,7 +132,10 @@ export const saveTrialToDB = async (
   }
 
   if (isUpdate && selectedTrialId) {
-    await supabase.from("trial_assessments").delete().eq("trial_id", trialId);
+    await supabase
+      .from("trial_assessments")
+      .delete()
+      .eq("trial_id", trialId);
     await supabase
       .from("trial_medications_template")
       .delete()
