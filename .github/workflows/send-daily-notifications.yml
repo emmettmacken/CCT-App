@@ -2,10 +2,10 @@ name: Daily Notifications
 
 on:
   schedule:
-    - cron: '45 9 * * *'   # 10:45 Dublin – Morning appointment reminder
-    - cron: '45 10 * * *'   # 11:45 Dublin – Medication reminder
-    - cron: '45 17 * * *'   # 18:45 Dublin – Evening appointment reminder
-    - cron: '45 18 * * *'   # 19:45 Dublin – Fasting reminder
+    - cron: '45 10 * * *'   # 10:45 Dublin – Morning appointment reminder
+    - cron: '45 11 * * *'   # 11:45 Dublin – Medication reminder
+    - cron: '45 18 * * *'   # 18:45 Dublin – Evening appointment reminder
+    - cron: '45 19 * * *'   # 19:45 Dublin – Fasting reminder
   workflow_dispatch:
 
 jobs:
