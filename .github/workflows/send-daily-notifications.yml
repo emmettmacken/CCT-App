@@ -10,7 +10,7 @@ on:
 
 jobs:
   appointments_morning:
-    if: github.event.schedule == '45 9 * * *'
+    if: github.event.schedule == '45 10 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send morning appointment reminders
@@ -21,7 +21,7 @@ jobs:
             --data '{"name":"Functions"}'
 
   meds_noon:
-    if: github.event.schedule == '45 10 * * *'
+    if: github.event.schedule == '45 11 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send medication reminders
@@ -32,7 +32,7 @@ jobs:
             --data '{"name":"Functions"}'
 
   appointments_evening:
-    if: github.event.schedule == '45 17 * * *'
+    if: github.event.schedule == '45 18 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send evening appointment reminders
@@ -42,7 +42,7 @@ jobs:
             -H "Content-Type: application/json" \
             --data '{"name":"Functions"}'
   fasting_evening:
-    if: github.event.schedule == '45 18 * * *'
+    if: github.event.schedule == '45 19 * * *'
     runs-on: ubuntu-latest
     steps:
       - name: Send fasting reminders
