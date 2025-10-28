@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emmettmacken.CCTApp",
+      "bundleIdentifier": "ie.cct.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "ie.cct.app"
     },
     "web": {
       "bundler": "metro",
@@ -42,7 +43,7 @@
       [
         "expo-notifications",
         {
-          "icon":"./assets/images/notification-icon.png",
+          "icon": "./assets/images/notification-icon.png",
           "color": "#ffffff"
         }
       ]
