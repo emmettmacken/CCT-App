@@ -6,9 +6,6 @@
 .env.local
 .env.*.local
 
-# Supabase client (sensitive keys)
-backend/supabaseClient.js
-
 # SSL / PEM files
 *.pem
 
@@ -22,3 +19,6 @@ expo-env.d.ts
 
 # Example / template files
 app-example
+
+# Build output
+/Android
