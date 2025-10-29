@@ -1,12 +1,12 @@
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { supabase } from "../backend/supabaseClient";
 
-// Configure how notifications behave when received (foreground behavior)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,  
-    shouldShowList: true,     // ensures it shows in notification center
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -14,14 +14,13 @@ Notifications.setNotificationHandler({
 
 export async function registerPushToken() {
   try {
-    // 1 Ensure it's a physical device (emulators won't work)
     if (!Device.isDevice) {
       console.warn("Push notifications require a physical device.");
       return;
     }
 
-    // 2 Check for permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     if (existingStatus !== "granted") {
@@ -34,26 +33,33 @@ export async function registerPushToken() {
       return;
     }
 
-    // 3 Get Expo push token
-    const tokenResponse = await Notifications.getExpoPushTokenAsync();
+    // Must include projectId for Android standalone builds
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId:
+        Constants.expoConfig.extra?.eas?.projectId ||
+        Constants.easConfig?.projectId,
+    });
     const token = tokenResponse.data;
     console.log("Expo Push Token:", token);
 
-    // 4 Get logged-in user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) throw userError;
+    // Wait until Supabase session restores
+    let {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const retry = await supabase.auth.getUser();
+      user = retry.data.user;
+    }
     if (!user) {
       console.warn("No authenticated user found — cannot save token.");
       return;
     }
 
-    // 5 Save Expo token to Supabase `profiles` table
+    // Save token
     const { error: upsertError } = await supabase
       .from("profiles")
-      .upsert(
-        { id: user.id, expo_push_token: token },
-        { onConflict: "id" }
-      );
+      .upsert({ id: user.id, expo_push_token: token }, { onConflict: "id" });
 
     if (upsertError) {
       console.error("Failed to save Expo push token:", upsertError.message);

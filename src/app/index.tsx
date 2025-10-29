@@ -1,8 +1,7 @@
 import { Redirect } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
-import { supabase } from "../../backend/supabaseClient"; 
-import { registerPushToken } from "../notifications";
+import { supabase } from "../../backend/supabaseClient";
 
 export default function Index() {
   const [loading, setLoading] = useState(true);
@@ -11,36 +10,41 @@ export default function Index() {
   useEffect(() => {
     const init = async () => {
       try {
-        // 1 Register device push token
-        await registerPushToken();
+        // Check for authenticated user
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-        // 2 Fetch current user
-        const { data: { user }, error } = await supabase.auth.getUser();
         if (error) {
           console.error("Error fetching user:", error.message);
           setRedirectTo("/login");
           return;
         }
 
+        // If no active session, redirect to login
         if (!user) {
           setRedirectTo("/login");
           return;
         }
 
-        // 3 Fetch user's role from profiles table
+        // Fetch user's role from profiles table
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("role")
           .eq("id", user.id)
           .single();
 
-        if (profileError) {
-          console.error("Error fetching profile role:", profileError.message);
+        if (profileError || !profile) {
+          console.error(
+            "Error fetching profile role:",
+            profileError?.message || "No profile found"
+          );
           setRedirectTo("/login");
           return;
         }
 
-        // 4 Redirect based on role
+        // Redirect based on user role
         switch (profile.role) {
           case "patient":
             setRedirectTo("../(patient)/home");
@@ -55,7 +59,6 @@ export default function Index() {
             console.warn("Unknown role, redirecting to login");
             setRedirectTo("/login");
         }
-
       } catch (err) {
         console.error("Startup error:", err);
         setRedirectTo("/login");
@@ -67,16 +70,23 @@ export default function Index() {
     init();
   }, []);
 
-  // Loading spinner
+  // Show loading spinner while checking session
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
 
-  // Redirect
+  // Redirect once we know where to go
   if (redirectTo) {
     return <Redirect href={redirectTo as any} />;
   }

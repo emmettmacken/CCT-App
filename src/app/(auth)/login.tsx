@@ -15,6 +15,7 @@ import {
 import Icon from "react-native-vector-icons/Feather";
 import { supabase } from "../../../backend/supabaseClient";
 import Button from "../../components/ui/Button";
+import { registerPushToken } from "../../notifications";
 import { styles } from "../../styles/auth.styles";
 
 const SignInScreen = () => {
@@ -28,6 +29,7 @@ const SignInScreen = () => {
       alert("Please fill in all fields");
       return;
     }
+
     try {
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
@@ -46,6 +48,14 @@ const SignInScreen = () => {
         return;
       }
 
+      // Register push token immediately after login succeeds
+      try {
+        await registerPushToken();
+      } catch (tokenError) {
+        console.warn("Failed to register push token:", tokenError);
+      }
+
+      // Fetch the user’s role
       const { data: userProfile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
@@ -62,7 +72,7 @@ const SignInScreen = () => {
       if (role === "clinician") {
         router.replace("../(clinician)/home");
       } else if (role === "admin") {
-        router.replace("../(admin)/home"); 
+        router.replace("../(admin)/home");
       } else {
         router.replace("../(patient)/home");
       }
