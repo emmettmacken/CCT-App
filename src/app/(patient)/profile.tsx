@@ -211,6 +211,10 @@ const PatientSettings: React.FC = () => {
                 ? "Trial ID:"
                 : field === "consultant"
                 ? "Consultant:"
+                : field === "height"
+                ? "Height (cm):"
+                : field === "weight"
+                ? "Weight (kg):"
                 : field.charAt(0).toUpperCase() + field.slice(1) + ":"}
             </Text>
             {isEditing ? (
@@ -277,7 +281,11 @@ const PatientSettings: React.FC = () => {
 
         {/* Toggle to show password fields */}
         <View
-          style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
         >
           <Switch
             value={showPasswordFields}
