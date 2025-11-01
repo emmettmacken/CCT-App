@@ -37,8 +37,16 @@ interface PatientInfo {
 }
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return "Unavailable";
-  const [year, month, day] = dateStr.split("-");
+  if (!dateStr || dateStr === "Start date unavailable") {
+    return "Start date unavailable";
+  }
+
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) {
+    return dateStr;
+  }
+
+  const [year, month, day] = parts;
   return `${day}-${month}-${year}`;
 };
 
