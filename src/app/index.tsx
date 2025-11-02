@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
-import { supabase } from "../../backend/supabaseClient";
+import { ActivityIndicator, View } from "react-native";
+import { supabase } from "../backend/supabaseClient";
 
 export default function Index() {
   const [loading, setLoading] = useState(true);

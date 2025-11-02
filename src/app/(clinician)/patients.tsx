@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Button, Card, Chip, List, TextInput } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import OptionalMedicationAssigner from "../../components/OptionalMedicationAssigner";
 import PatientMedicationLogBook from "../../components/PatientMedicationLogBook";
 import PatientNotes from "../../components/PatientNotes";

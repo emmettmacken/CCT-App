@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import AppointmentsSection from "../../components/AppointmentsSection";
 import QuickLinksSection from "../../components/QuickLinksSection";
 import { useTabRefresh } from "../../hooks/useTabRefresh";

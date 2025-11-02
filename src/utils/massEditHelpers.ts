@@ -1,5 +1,5 @@
 import { Alert } from "react-native";
-import { supabase } from "../../backend/supabaseClient";
+import { supabase } from "../backend/supabaseClient";
 
 export const fetchTrials = async () => {
   const { data, error } = await supabase

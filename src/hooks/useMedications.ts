@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../backend/supabaseClient';
-import { Medication, MedicationLog, AdditionalMedication } from '../types/medications';
+import { supabase } from '../backend/supabaseClient';
+import { AdditionalMedication, Medication, MedicationLog } from '../types/medications';
 
 export const useMedications = () => {
   const [trialMedications, setTrialMedications] = useState<Medication[]>([]);

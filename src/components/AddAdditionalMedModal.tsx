@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, Modal, Platform } from "react-native";
+import { Modal, Platform, ScrollView, Text, View } from "react-native";
 import { Button, TextInput } from "react-native-paper";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { AdditionalMedication } from "../types/medications";
-import { supabase } from "../../backend/supabaseClient";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { supabase } from "../backend/supabaseClient";
 import { styles } from "../styles/medications.styles";
+import { AdditionalMedication } from "../types/medications";
 
 interface Props {
   visible: boolean;
@@ -47,7 +50,9 @@ export const AddAdditionalMedModal: React.FC<Props> = ({
 
   const handleSave = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       if (medToEdit) {
@@ -58,7 +63,13 @@ export const AddAdditionalMedModal: React.FC<Props> = ({
       } else {
         await supabase
           .from("additional_medications_logs")
-          .insert([{ ...formMed, user_id: user.id, taken_at: new Date().toISOString() }]);
+          .insert([
+            {
+              ...formMed,
+              user_id: user.id,
+              taken_at: new Date().toISOString(),
+            },
+          ]);
       }
 
       const { data: updated } = await supabase
@@ -76,7 +87,12 @@ export const AddAdditionalMedModal: React.FC<Props> = ({
   };
 
   return (
-    <Modal visible={visible} onRequestClose={onClose} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      onRequestClose={onClose}
+      animationType="slide"
+      transparent
+    >
       {/* Overlay to dim background */}
       <View
         style={{
@@ -102,7 +118,9 @@ export const AddAdditionalMedModal: React.FC<Props> = ({
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.modalTitle}>
-              {medToEdit ? "Edit Additional Medication" : "Add Additional Medication"}
+              {medToEdit
+                ? "Edit Additional Medication"
+                : "Add Additional Medication"}
             </Text>
 
             <TextInput
@@ -130,7 +148,11 @@ export const AddAdditionalMedModal: React.FC<Props> = ({
             />
 
             <View style={styles.buttonRow}>
-              <Button mode="outlined" onPress={onClose} style={styles.cancelButton}>
+              <Button
+                mode="outlined"
+                onPress={onClose}
+                style={styles.cancelButton}
+              >
                 Cancel
               </Button>
               <Button

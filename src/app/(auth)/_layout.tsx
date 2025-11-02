@@ -2,7 +2,7 @@ import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 
 export default function AuthLayout() {
   const router = useRouter();

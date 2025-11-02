@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from "react";
-import { View, TextInput, Text, ActivityIndicator } from "react-native";
-import { supabase } from "../../backend/supabaseClient";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { supabase } from "../backend/supabaseClient";
 
 interface PatientNotesProps {
   patientId: string;

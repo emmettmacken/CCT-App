@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
 import { styles } from "../../styles/home.styles";
 

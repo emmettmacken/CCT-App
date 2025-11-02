@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import Button from "../../components/ui/Button";
 import { registerPushToken } from "../../notifications";
 import { styles } from "../../styles/auth.styles";

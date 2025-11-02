@@ -13,7 +13,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
 import { styles } from "../../styles/clinicianFaq.styles";
 import { FAQ } from "../../types/faq";

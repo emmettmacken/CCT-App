@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import { supabase } from "../backend/supabaseClient";
+import { supabase } from "./backend/supabaseClient";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

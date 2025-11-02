@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
 import { styles } from "../../styles/appointments.styles";
 

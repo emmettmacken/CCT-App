@@ -2,7 +2,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { DatePickerModal } from "react-native-paper-dates";
-import { supabase } from "../../backend/supabaseClient";
+import { supabase } from "../backend/supabaseClient";
 
 interface PatientMedicationLogBookProps {
   patientId: string;

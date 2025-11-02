@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../backend/supabaseClient';
+import { supabase } from '../backend/supabaseClient';
 import { Appointment, Patient } from '../types/clinCalendar';
 
 export const useAppointments = () => {

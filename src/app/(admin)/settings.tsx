@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { supabase } from "../../../backend/supabaseClient";
+import { supabase } from "../../backend/supabaseClient";
 import { useTabRefresh } from "../../hooks/useTabRefresh";
 import { styles } from "../../styles/profile.styles";
 

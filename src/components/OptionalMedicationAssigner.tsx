@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, Modal, TouchableOpacity, Alert, ScrollView } from "react-native";
-import { Button, Card } from "react-native-paper";
-import { supabase } from "../../backend/supabaseClient";
 import { addDays } from "date-fns";
+import React, { useState } from "react";
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Button, Card } from "react-native-paper";
+import { supabase } from "../backend/supabaseClient";
 
 const OptionalMedicationAssigner = ({ patientId }: { patientId: string }) => {
   const [visible, setVisible] = useState(false);
@@ -37,7 +44,10 @@ const OptionalMedicationAssigner = ({ patientId }: { patientId: string }) => {
       if (medsError) throw medsError;
 
       if (!meds || meds.length === 0) {
-        Alert.alert("No Optional Medications", "There are no optional medications for this trial.");
+        Alert.alert(
+          "No Optional Medications",
+          "There are no optional medications for this trial."
+        );
         setLoading(false);
         return;
       }
@@ -55,7 +65,10 @@ const OptionalMedicationAssigner = ({ patientId }: { patientId: string }) => {
 
   const applyOptionalMedication = async () => {
     if (!selectedMed) {
-      Alert.alert("Select a Medication", "Please select one optional medication to apply.");
+      Alert.alert(
+        "Select a Medication",
+        "Please select one optional medication to apply."
+      );
       return;
     }
 
@@ -151,7 +164,9 @@ const OptionalMedicationAssigner = ({ patientId }: { patientId: string }) => {
           }}
         >
           <Card style={{ width: "85%", padding: 16 }}>
-            <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>
+            <Text
+              style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}
+            >
               Select an Optional Medication
             </Text>
 
@@ -179,7 +194,13 @@ const OptionalMedicationAssigner = ({ patientId }: { patientId: string }) => {
               ))}
             </ScrollView>
 
-            <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 10 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                marginTop: 10,
+              }}
+            >
               <Button onPress={() => setVisible(false)}>Cancel</Button>
               <Button mode="contained" onPress={applyOptionalMedication}>
                 Apply

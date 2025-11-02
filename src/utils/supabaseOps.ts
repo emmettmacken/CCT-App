@@ -1,5 +1,5 @@
 import { formatISO } from "date-fns";
-import { supabase } from "../../backend/supabaseClient";
+import { supabase } from "../backend/supabaseClient";
 import { Assessment, TrialMedication } from "../types/admin";
 
 export const fetchTrials = async (): Promise<{ id: string; name: string }[]> => {

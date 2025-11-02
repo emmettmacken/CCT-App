@@ -1,19 +1,18 @@
-import React, { useState } from 'react';
+import { format } from "date-fns";
+import React, { useState } from "react";
 import {
-  View,
-  Text,
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
   KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { TextInput, Button, IconButton } from 'react-native-paper';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { format } from 'date-fns';
-import { supabase } from '../../backend/supabaseClient';
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { Button, IconButton, TextInput } from "react-native-paper";
+import { supabase } from "../backend/supabaseClient";
 
 type SideEffectRecord = {
   id?: string;
@@ -31,9 +30,13 @@ type SideEffectModalProps = {
   onSaved?: (record: SideEffectRecord) => void;
 };
 
-const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, onSaved }) => {
-  const [description, setDescription] = useState<string>('');
-  const [medicationTaken, setMedicationTaken] = useState<string>('');
+const SideEffectModal: React.FC<SideEffectModalProps> = ({
+  visible,
+  onDismiss,
+  onSaved,
+}) => {
+  const [description, setDescription] = useState<string>("");
+  const [medicationTaken, setMedicationTaken] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | null>(new Date());
   const [endDate, setEndDate] = useState<Date | null>(null);
 
@@ -44,8 +47,8 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
   const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
-    setDescription('');
-    setMedicationTaken('');
+    setDescription("");
+    setMedicationTaken("");
     setStartDate(new Date());
     setEndDate(null);
     setError(null);
@@ -55,24 +58,26 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
     setError(null);
 
     if (!description.trim()) {
-      setError('Please enter a description of the side effect.');
+      setError("Please enter a description of the side effect.");
       return;
     }
 
     if (!startDate) {
-      setError('Please select a start date and time.');
+      setError("Please select a start date and time.");
       return;
     }
 
     if (endDate && startDate > endDate) {
-      setError('End date must be the same or after the start date.');
+      setError("End date must be the same or after the start date.");
       return;
     }
 
     setSaving(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user found");
 
       const payload: SideEffectRecord = {
@@ -84,7 +89,7 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
       };
 
       const { data, error: insertError } = await supabase
-        .from('side_effects')
+        .from("side_effects")
         .insert([payload])
         .select()
         .single();
@@ -95,14 +100,15 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
       resetForm();
       onDismiss?.();
     } catch (e: any) {
-      console.error('Error saving side effect:', e);
-      setError('Failed to save side effect. Please try again.');
+      console.error("Error saving side effect:", e);
+      setError("Failed to save side effect. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  const renderDateTime = (d: Date | null) => (d ? format(d, 'PPP p') : 'Not set');
+  const renderDateTime = (d: Date | null) =>
+    d ? format(d, "PPP p") : "Not set";
 
   return (
     <Modal
@@ -118,7 +124,7 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
     >
       <View style={styles.overlay}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.flex}
         >
           <View style={styles.modalContainer}>
@@ -162,7 +168,9 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
                       style={styles.dateButton}
                       disabled={saving}
                     >
-                      <Text style={styles.dateText}>{renderDateTime(startDate)}</Text>
+                      <Text style={styles.dateText}>
+                        {renderDateTime(startDate)}
+                      </Text>
                     </TouchableOpacity>
                   </View>
 
@@ -173,7 +181,9 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
                       style={styles.dateButton}
                       disabled={saving}
                     >
-                      <Text style={styles.dateText}>{renderDateTime(endDate)}</Text>
+                      <Text style={styles.dateText}>
+                        {renderDateTime(endDate)}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -236,7 +246,9 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
           mode="datetime"
           date={
             endDate ||
-            (startDate ? new Date(startDate.getTime() + 60 * 60 * 1000) : new Date())
+            (startDate
+              ? new Date(startDate.getTime() + 60 * 60 * 1000)
+              : new Date())
           }
           onConfirm={(date) => {
             setShowEndPicker(false);
@@ -253,45 +265,45 @@ const SideEffectModal: React.FC<SideEffectModalProps> = ({ visible, onDismiss, o
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
   },
   flex: {
     flex: 1,
   },
   modalContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 24,
-    maxHeight: '85%',
+    maxHeight: "85%",
   },
   scrollContent: {
     paddingBottom: 20,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#2c3e50',
+    fontWeight: "700",
+    color: "#2c3e50",
   },
   content: {
     paddingBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     marginBottom: 12,
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   dateColumn: {
@@ -300,33 +312,33 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginBottom: 6,
   },
   dateButton: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 6,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#fafafa',
+    backgroundColor: "#fafafa",
   },
   dateText: {
-    color: '#222',
+    color: "#222",
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 6,
   },
   button: {
     marginLeft: 8,
   },
   saveButton: {
-    backgroundColor: '#3f51b5',
+    backgroundColor: "#3f51b5",
   },
   errorText: {
-    color: '#d32f2f',
+    color: "#d32f2f",
     marginBottom: 8,
   },
 });
