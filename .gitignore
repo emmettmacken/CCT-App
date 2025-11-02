@@ -24,3 +24,8 @@ app-example
 local.properties
 android/app/build/
 android/.gradle/
+
+# Google Service
+cct-app-b1c9c-firebase-adminsdk-fbsvc-ac820de45f.json
+@emmettmacken__CCT-App_OLD_1.jks
+@emmettmacken__CCT-App.jks
