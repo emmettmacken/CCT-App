@@ -83,19 +83,6 @@ const FAQScreen = () => {
                 </Text>
               </Text>
 
-              {/* Email */}
-              <Text style={styles.contactDetail}>
-                Email:{" "}
-                <Text
-                  style={{ color: "blue", textDecorationLine: "underline" }}
-                  onPress={() =>
-                    Linking.openURL("mailto:clinicaltrials@uhl.ie")
-                  }
-                >
-                  clinicaltrials@uhl.ie
-                </Text>
-              </Text>
-
               <Text style={styles.contactDetail}>Hours: Mon-Fri, 9am-5pm</Text>
 
               {/* Out-of-hours phone */}
